@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_ghl" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.ghl</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Use the same anchor that you know is working -->
+            <xpath expr="//block[@id='user_default_rights']" position="before">
+
+                <block title="GoHighLevel Sync" id="ghl_sync_block">
+
+                    <setting string="API Configuration"
+                             help="Configure GoHighLevel API token and location.">
+                        <div class="row">
+                            <field name="ghl_api_token"
+                                   password="True"
+                                   placeholder="PIT token from GoHighLevel"
+                                   class="col-6"/>
+                            <field name="ghl_location_id"
+                                   placeholder="Location ID (sub-account)"
+                                   class="col-6"/>
+                        </div>
+                    </setting>
+
+                    <setting string="Sync Behavior"
+                             help="Configure sync direction and when to send updates.">
+                        <div class="row">
+                            <field name="ghl_sync_direction"
+                                   class="col-6"/>
+                            <field name="ghl_sync_on"
+                                   class="col-6"/>
+                        </div>
+                    </setting>
+
+                    <setting string="What To Sync"
+                             help="Enable or disable different record types.">
+                        <div class="row">
+                            <field name="ghl_sync_contacts" class="col-3"/>
+                            <field name="ghl_sync_opportunities" class="col-3"/>
+                            <field name="ghl_sync_tasks" class="col-3"/>
+                            <field name="ghl_sync_notes" class="col-3"/>
+                        </div>
+                    </setting>
+
+                    <setting string="Polling Interval"
+                             help="How often Odoo should poll GoHighLevel for updates (GHL → Odoo).">
+                        <div class="row">
+                            <field name="ghl_poll_interval_minutes"
+                                   class="col-4"
+                                   placeholder="10"/>
+                            <label class="col-8">Minutes between polls (cron).</label>
+                        </div>
+                    </setting>
+
+                    <setting string="Last Sync Timestamps"
+                             help="Read-only info about last pull times.">
+                        <div class="row">
+                            <field name="ghl_last_contact_pull" class="col-3" readonly="1"/>
+                            <field name="ghl_last_opportunity_pull" class="col-3" readonly="1"/>
+                            <field name="ghl_last_task_pull" class="col-3" readonly="1"/>
+                            <field name="ghl_last_note_pull" class="col-3" readonly="1"/>
+                        </div>
+                    </setting>
+
+                    <setting string="Manual Sync Now"
+                             help="Click 'Save' first, then use this button to pull changes immediately.">
+                        <button name="action_ghl_manual_sync"
+                                string="Sync Now"
+                                type="object"
+                                class="btn btn-primary"/>
+                    </setting>
+
+                </block>
+
+            </xpath>
+        </field>
+    </record>
+</odoo>
