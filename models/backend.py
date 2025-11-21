@@ -179,7 +179,6 @@ class OdooGHLBackend(models.AbstractModel):
             "country": partner.country_id and partner.country_id.code or "",
             "tags": tags,
             "companyName": company_name,
-            "companyName": company_name,
             "type": "customer",
         }
 
