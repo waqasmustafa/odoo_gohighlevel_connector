@@ -29,6 +29,16 @@ class ProjectTask(models.Model):
         res = super().write(vals)
         backend = self.env["odoo.ghl.backend"]
         cfg = backend._get_config()
+        # Define fields that should trigger a sync
+        synced_fields = {
+            "name", "description", "date_deadline", "user_ids",
+            "partner_id", "ghl_skip_sync"
+        }
+        
+        # Check if any synced field is in vals
+        if not any(field in vals for field in synced_fields):
+            return res
+
         if (
             cfg["sync_tasks"]
             and cfg["sync_direction"] in ("odoo_to_ghl", "both")
