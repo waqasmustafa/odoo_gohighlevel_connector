@@ -6,3 +6,4 @@ from . import contact
 from . import opportunity
 from . import task
 from . import note
+from . import ghl_mapping

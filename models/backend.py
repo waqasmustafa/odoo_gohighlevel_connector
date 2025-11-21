@@ -140,6 +140,16 @@ class OdooGHLBackend(models.AbstractModel):
             return
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
+        
+        # Prevent infinite loop
+        if self.env.context.get("ghl_sync_running"):
+            return
+
+        # Tags
+        tags = [t.name for t in partner.category_id]
+
+        # Company Name
+        company_name = partner.parent_id.name if partner.parent_id else (partner.company_name or "")
 
         payload = {
             "locationId": cfg["location_id"],
@@ -151,8 +161,21 @@ class OdooGHLBackend(models.AbstractModel):
             "state": partner.state_id and partner.state_id.name or "",
             "postalCode": partner.zip or "",
             "country": partner.country_id and partner.country_id.code or "",
+            "tags": tags,
+            "companyName": company_name,
+            "companyName": company_name,
             "type": "customer",
         }
+
+        # Assignee (User Mapping)
+        if partner.user_id:
+            mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", partner.user_id.id)], limit=1)
+            if mapping:
+                payload["assignedTo"] = mapping.ghl_user_id
+
+        # Lead Source
+        # if partner.source_id: # Assuming you want to sync Odoo Source -> GHL Source (requires string match or mapping)
+        #     payload["source"] = partner.source_id.name
 
         endpoint = "/contacts/"
         method = "POST"
@@ -160,7 +183,18 @@ class OdooGHLBackend(models.AbstractModel):
             endpoint = f"/contacts/{partner.ghl_id}"
             method = "PUT"
 
-        data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        try:
+            data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        except Exception as e:
+            self.env["ghl.sync.queue"].create({
+                "name": partner.name,
+                "model_name": "res.partner",
+                "record_id": partner.id,
+                "action": "push",
+                "error_message": str(e),
+                "state": "failed"
+            })
+            raise e
         contact = data.get("contact") or data
         ghl_id = contact.get("id")
         updated_at = contact.get("dateUpdated") or contact.get("updatedAt")
@@ -232,8 +266,29 @@ class OdooGHLBackend(models.AbstractModel):
                 if country:
                     vals["country_id"] = country.id
 
+            # Tags
+            ghl_tags = c.get("tags") or []
+            if ghl_tags:
+                tag_ids = []
+                for tag_name in ghl_tags:
+                    tag = self.env["res.partner.category"].sudo().search([("name", "=", tag_name)], limit=1)
+                    if not tag:
+                        tag = self.env["res.partner.category"].sudo().create({"name": tag_name})
+                    tag_ids.append(tag.id)
+                vals["category_id"] = [(6, 0, tag_ids)]
+
+            # Company (Try to link to existing company by name)
+            ghl_company = c.get("companyName")
+            if ghl_company:
+                company_partner = self.env["res.partner"].sudo().search(
+                    [("name", "=", ghl_company), ("is_company", "=", True)], limit=1
+                )
+                if company_partner:
+                    vals["parent_id"] = company_partner.id
+                # Optional: Create company if not found? For now, we only link if exists to avoid duplicates.
+
             if partner:
-                partner.write(vals)
+                partner.with_context(ghl_sync_running=True).write(vals)
             else:
                 vals.update(
                     {
@@ -242,7 +297,7 @@ class OdooGHLBackend(models.AbstractModel):
                         "ghl_last_synced_at": fields.Datetime.now(),
                     }
                 )
-                Partner.create(vals)
+                Partner.with_context(ghl_sync_running=True).create(vals)
 
         if latest:
             self._save_last_pull(contact=latest.isoformat())
@@ -263,8 +318,22 @@ class OdooGHLBackend(models.AbstractModel):
             "name": lead.name,
             "monetaryValue": lead.planned_revenue or lead.expected_revenue or 0.0,
             "status": "open" if lead.active else "closed",
+            "status": "open" if lead.active else "closed",
             "contactId": lead.partner_id and lead.partner_id.ghl_id or None,
         }
+
+        # Assignee
+        if lead.user_id:
+            mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", lead.user_id.id)], limit=1)
+            if mapping:
+                payload["assignedTo"] = mapping.ghl_user_id
+
+        # Pipeline & Stage
+        if lead.stage_id:
+            stage_mapping = self.env["ghl.pipeline.mapping"].search([("odoo_stage_id", "=", lead.stage_id.id)], limit=1)
+            if stage_mapping:
+                payload["pipelineId"] = stage_mapping.ghl_pipeline_id
+                payload["stageId"] = stage_mapping.ghl_stage_id
 
         endpoint = "/opportunities/"  # TODO: confirm in your GHL docs
         method = "POST"
@@ -272,7 +341,18 @@ class OdooGHLBackend(models.AbstractModel):
             endpoint = f"/opportunities/{lead.ghl_id}"
             method = "PUT"
 
-        data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        try:
+            data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        except Exception as e:
+            self.env["ghl.sync.queue"].create({
+                "name": lead.name,
+                "model_name": "crm.lead",
+                "record_id": lead.id,
+                "action": "push",
+                "error_message": str(e),
+                "state": "failed"
+            })
+            raise e
         opp = data.get("opportunity") or data
         ghl_id = opp.get("id")
         updated_at = opp.get("updatedAt")
@@ -337,7 +417,7 @@ class OdooGHLBackend(models.AbstractModel):
                     vals["partner_id"] = partner.id
 
             if lead:
-                lead.write(vals)
+                lead.with_context(ghl_sync_running=True).write(vals)
             else:
                 vals.update(
                     {
@@ -346,7 +426,7 @@ class OdooGHLBackend(models.AbstractModel):
                         "ghl_last_synced_at": fields.Datetime.now(),
                     }
                 )
-                Lead.create(vals)
+                Lead.with_context(ghl_sync_running=True).create(vals)
 
         if latest:
             self._save_last_pull(opportunity=latest.isoformat())
@@ -369,13 +449,36 @@ class OdooGHLBackend(models.AbstractModel):
             "description": task.description or "",
             "dueDate": task.date_deadline and task.date_deadline.isoformat(),
         }
+        
+        # Assignee
+        if task.user_ids:
+            # GHL tasks usually have one assignee, take the first one
+            user = task.user_ids[0]
+            mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", user.id)], limit=1)
+            if mapping:
+                payload["assignedTo"] = mapping.ghl_user_id
+        
+        # Related Contact
+        if task.partner_id and task.partner_id.ghl_id:
+            payload["contactId"] = task.partner_id.ghl_id
         endpoint = "/tasks/"
         method = "POST"
         if task.ghl_id:
             endpoint = f"/tasks/{task.ghl_id}"
             method = "PUT"
 
-        data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        try:
+            data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        except Exception as e:
+            self.env["ghl.sync.queue"].create({
+                "name": task.name,
+                "model_name": "project.task",
+                "record_id": task.id,
+                "action": "push",
+                "error_message": str(e),
+                "state": "failed"
+            })
+            raise e
         t = data.get("task") or data
         ghl_id = t.get("id")
         updated_at = t.get("updatedAt")

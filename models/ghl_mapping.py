@@ -1,0 +1,80 @@
+# odoo_gohighlevel_connector/models/ghl_mapping.py
+from odoo import api, fields, models
+
+class GHLUserMapping(models.Model):
+    _name = "ghl.user.mapping"
+    _description = "GoHighLevel User Mapping"
+    _rec_name = "odoo_user_id"
+
+    odoo_user_id = fields.Many2one("res.users", string="Odoo User", required=True)
+    ghl_user_id = fields.Char(string="GHL User ID", required=True, help="User ID from GoHighLevel")
+    
+    _sql_constraints = [
+        ('odoo_user_uniq', 'unique(odoo_user_id)', 'Odoo User must be unique!'),
+        ('ghl_user_uniq', 'unique(ghl_user_id)', 'GHL User ID must be unique!'),
+    ]
+
+class GHLPipelineMapping(models.Model):
+    _name = "ghl.pipeline.mapping"
+    _description = "GoHighLevel Pipeline Mapping"
+    _rec_name = "odoo_stage_id"
+
+    odoo_stage_id = fields.Many2one("crm.stage", string="Odoo Stage", required=True)
+    ghl_pipeline_id = fields.Char(string="GHL Pipeline ID", required=True)
+    ghl_stage_id = fields.Char(string="GHL Stage ID", required=True)
+
+    _sql_constraints = [
+        ('odoo_stage_uniq', 'unique(odoo_stage_id)', 'Odoo Stage must be unique!'),
+    ]
+
+class GHLSyncQueue(models.Model):
+    _name = "ghl.sync.queue"
+    _description = "GoHighLevel Sync Retry Queue"
+    _order = "create_date desc"
+
+    name = fields.Char(string="Record Name", required=True)
+    model_name = fields.Char(string="Model", required=True)
+    record_id = fields.Integer(string="Record ID", required=True)
+    action = fields.Selection([
+        ('push', 'Push to GHL'),
+        ('pull', 'Pull from GHL')
+    ], string="Action", required=True)
+    error_message = fields.Text(string="Error Message")
+    retry_count = fields.Integer(string="Retry Count", default=0)
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('failed', 'Failed'),
+        ('done', 'Done')
+    ], string="State", default='draft')
+
+    def action_retry(self):
+        """Retry the sync operation"""
+        backend = self.env["odoo.ghl.backend"]
+        for rec in self:
+            try:
+                record = self.env[rec.model_name].browse(rec.record_id)
+                if not record.exists():
+                    rec.state = 'done' # Record deleted, skip
+                    continue
+                
+                if rec.action == 'push':
+                    if rec.model_name == 'res.partner':
+                        backend.push_contact(record)
+                    elif rec.model_name == 'crm.lead':
+                        backend.push_opportunity(record)
+                    elif rec.model_name == 'project.task':
+                        backend.push_task(record)
+                    elif rec.model_name == 'mail.message':
+                        backend.push_note(record)
+                
+                rec.state = 'done'
+            except Exception as e:
+                rec.retry_count += 1
+                rec.error_message = str(e)
+                rec.state = 'failed'
+
+    @api.model
+    def cron_retry_failed_syncs(self):
+        """Cron job to retry failed syncs"""
+        records = self.search([('state', 'in', ['draft', 'failed']), ('retry_count', '<', 5)], limit=50)
+        records.action_retry()
