@@ -77,6 +77,15 @@
             </xpath>
         </field>
     </record>
+
+    <!-- Action for Settings -->
+    <record id="action_ghl_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'odoo_gohighlevel_connector'}</field>
     </record>
 
     <!-- Mappings Menus -->
@@ -99,10 +108,14 @@
     </record>
 
     <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png"/>
-    <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root"/>
-    <menuitem id="menu_ghl_settings" name="Settings" parent="menu_ghl_config" action="base.action_res_config_settings_view_form_inherit_ghl"/> <!-- Note: This action ID might need adjustment if not standard -->
+    
+    <!-- Main Menus -->
+    <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/>
+    
+    <!-- Configuration -->
+    <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root" sequence="100"/>
+    <menuitem id="menu_ghl_settings" name="Settings" parent="menu_ghl_config" action="action_ghl_config_settings"/>
     <menuitem id="menu_ghl_user_mapping" name="User Mapping" parent="menu_ghl_config" action="action_ghl_user_mapping"/>
     <menuitem id="menu_ghl_pipeline_mapping" name="Pipeline Mapping" parent="menu_ghl_config" action="action_ghl_pipeline_mapping"/>
-    <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_config" action="action_ghl_sync_queue"/>
 
 </odoo>
