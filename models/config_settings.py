@@ -135,3 +135,18 @@ class ResConfigSettings(models.TransientModel):
                 "sticky": False,
             },
         }
+
+    def action_ghl_test_connection(self):
+        """Test API connection from Settings."""
+        self.ensure_one()
+        self.env["odoo.ghl.backend"].test_api_connection(self.ghl_api_token, self.ghl_location_id)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Connection Successful",
+                "message": "Successfully connected to GoHighLevel API (200 OK).",
+                "type": "success",
+                "sticky": False,
+            },
+        }

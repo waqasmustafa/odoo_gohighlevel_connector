@@ -118,6 +118,22 @@ class OdooGHLBackend(models.AbstractModel):
             _logger.warning("GHL API non-JSON response: %s", response.text)
             return {}
 
+    @api.model
+    def test_api_connection(self, api_token, location_id):
+        """Test the API connection with provided credentials."""
+        if not api_token or not location_id:
+            raise UserError(_("Please enter both API Token and Location ID."))
+        
+        # Try to fetch 1 contact to verify access
+        endpoint = "/contacts/"
+        params = {"locationId": location_id, "limit": 1}
+        
+        try:
+            self._request("GET", endpoint, api_token, params=params)
+            return True
+        except Exception as e:
+            raise UserError(_("Connection Failed:\n%s") % str(e))
+
     # ---------------------------------------------------------------
     # Utility for date parsing
     # ---------------------------------------------------------------
