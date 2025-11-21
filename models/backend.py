@@ -261,7 +261,7 @@ class OdooGHLBackend(models.AbstractModel):
         updated_at = contact.get("dateUpdated") or contact.get("updatedAt")
 
         if ghl_id:
-            partner.write(
+            partner.with_context(ghl_sync_running=True).write(
                 {
                     "ghl_id": ghl_id,
                     "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
@@ -419,7 +419,7 @@ class OdooGHLBackend(models.AbstractModel):
         updated_at = opp.get("updatedAt")
 
         if ghl_id:
-            lead.write(
+            lead.with_context(ghl_sync_running=True).write(
                 {
                     "ghl_id": ghl_id,
                     "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
@@ -544,7 +544,7 @@ class OdooGHLBackend(models.AbstractModel):
         ghl_id = t.get("id")
         updated_at = t.get("updatedAt")
         if ghl_id:
-            task.write(
+            task.with_context(ghl_sync_running=True).write(
                 {
                     "ghl_id": ghl_id,
                     "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
@@ -585,7 +585,7 @@ class OdooGHLBackend(models.AbstractModel):
         ghl_id = n.get("id")
         updated_at = n.get("updatedAt")
         if ghl_id:
-            note.write(
+            note.with_context(ghl_sync_running=True).write(
                 {
                     "ghl_id": ghl_id,
                     "ghl_remote_updated_at": self._parse_remote_dt(updated_at),

@@ -8,6 +8,8 @@ class MailMessage(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if self.env.context.get("ghl_sync_running"):
+            return super().create(vals_list)
         messages = super().create(vals_list)
         backend = self.env["odoo.ghl.backend"]
         cfg = backend._get_config()

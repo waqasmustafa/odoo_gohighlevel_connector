@@ -8,6 +8,8 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if self.env.context.get("ghl_sync_running"):
+            return super().create(vals_list)
         partners = super().create(vals_list)
         backend = self.env["odoo.ghl.backend"]
         cfg = backend._get_config()
@@ -22,6 +24,8 @@ class ResPartner(models.Model):
         return partners
 
     def write(self, vals):
+        if self.env.context.get("ghl_sync_running"):
+            return super().write(vals)
         res = super().write(vals)
         backend = self.env["odoo.ghl.backend"]
         cfg = backend._get_config()
