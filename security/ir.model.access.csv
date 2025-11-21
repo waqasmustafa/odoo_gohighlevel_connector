@@ -1,1 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ghl_user_mapping,ghl.user.mapping,model_ghl_user_mapping,base.group_user,1,1,1,1
+access_ghl_pipeline_mapping,ghl.pipeline.mapping,model_ghl_pipeline_mapping,base.group_user,1,1,1,1
+access_ghl_sync_queue,ghl.sync.queue,model_ghl_sync_queue,base.group_user,1,1,1,1

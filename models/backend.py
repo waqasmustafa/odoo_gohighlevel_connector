@@ -176,11 +176,14 @@ class OdooGHLBackend(models.AbstractModel):
             "city": partner.city or "",
             "state": partner.state_id and partner.state_id.name or "",
             "postalCode": partner.zip or "",
-            "country": partner.country_id and partner.country_id.code or "",
+            "postalCode": partner.zip or "",
             "tags": tags,
             "companyName": company_name,
             "type": "customer",
         }
+
+        if partner.country_id and partner.country_id.code:
+            payload["country"] = partner.country_id.code
 
         # Assignee (User Mapping)
         if partner.user_id:
