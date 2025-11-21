@@ -178,6 +178,7 @@ class OdooGHLBackend(models.AbstractModel):
             "tags": tags,
             "companyName": company_name,
             "type": "customer",
+            "website": partner.website or "",
         }
 
         if partner.email:
