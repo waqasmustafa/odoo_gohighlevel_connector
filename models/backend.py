@@ -201,6 +201,8 @@ class OdooGHLBackend(models.AbstractModel):
         if partner.ghl_id:
             endpoint = f"/contacts/{partner.ghl_id}"
             method = "PUT"
+            if "locationId" in payload:
+                del payload["locationId"]
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
@@ -225,6 +227,8 @@ class OdooGHLBackend(models.AbstractModel):
                             # Retry as PUT
                             endpoint = f"/contacts/{existing_id}"
                             method = "PUT"
+                            if "locationId" in payload:
+                                del payload["locationId"]
                             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
                         else:
                             raise e
