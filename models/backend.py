@@ -171,17 +171,19 @@ class OdooGHLBackend(models.AbstractModel):
         payload = {
             "locationId": cfg["location_id"],
             "firstName": partner.name,
-            "email": partner.email,
-            "phone": partner.mobile or partner.phone,
             "address1": partner.street or "",
             "city": partner.city or "",
             "state": partner.state_id and partner.state_id.name or "",
-            "postalCode": partner.zip or "",
             "postalCode": partner.zip or "",
             "tags": tags,
             "companyName": company_name,
             "type": "customer",
         }
+
+        if partner.email:
+            payload["email"] = partner.email
+        if partner.mobile or partner.phone:
+            payload["phone"] = partner.mobile or partner.phone
 
         if partner.country_id and partner.country_id.code:
             payload["country"] = partner.country_id.code
