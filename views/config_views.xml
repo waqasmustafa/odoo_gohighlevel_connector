@@ -50,7 +50,7 @@
                             <field name="ghl_poll_interval_minutes"
                                    class="col-4"
                                    placeholder="10"/>
-                            <label class="col-8">Minutes between polls (cron).</label>
+                            <span class="col-8 o_form_label">Minutes between polls (cron).</span>
                         </div>
                     </setting>
 
