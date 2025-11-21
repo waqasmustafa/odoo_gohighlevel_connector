@@ -196,9 +196,8 @@ class OdooGHLBackend(models.AbstractModel):
                 payload["assignedTo"] = mapping.ghl_user_id
 
         # Lead Source
-        # Lead Source
-        if partner.source_id:
-            payload["source"] = partner.source_id.name
+        # if partner.source_id: # Assuming you want to sync Odoo Source -> GHL Source (requires string match or mapping)
+        #     payload["source"] = partner.source_id.name
 
         endpoint = "/contacts/"
         method = "POST"

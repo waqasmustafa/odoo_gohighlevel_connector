@@ -33,7 +33,7 @@ class ResPartner(models.Model):
         synced_fields = {
             "name", "email", "phone", "mobile", "street", "street2", "city",
             "zip", "state_id", "country_id", "category_id", "parent_id",
-            "company_name", "user_id", "ghl_skip_sync", "website", "source_id"
+            "company_name", "user_id", "ghl_skip_sync", "website"
         }
         
         # Check if any synced field is in vals
