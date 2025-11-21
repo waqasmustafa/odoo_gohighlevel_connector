@@ -142,7 +142,8 @@ class OdooGHLBackend(models.AbstractModel):
         if not value:
             return False
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
         except Exception:
             return False
 
@@ -203,6 +204,44 @@ class OdooGHLBackend(models.AbstractModel):
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+        except UserError as e:
+            # Handle Duplicate Contact (400)
+            error_msg = str(e)
+            if "This location does not allow duplicated contacts" in error_msg:
+                # Extract contactId from error message if possible
+                # The error message from GHL is JSON inside the exception string
+                import json
+                import re
+                
+                # Try to find JSON part
+                match = re.search(r'(\{.*\})', error_msg)
+                if match:
+                    try:
+                        err_json = json.loads(match.group(1))
+                        existing_id = err_json.get("meta", {}).get("contactId")
+                        if existing_id:
+                            _logger.info("Found existing GHL contact %s, linking and updating.", existing_id)
+                            partner.with_context(ghl_sync_running=True).write({"ghl_id": existing_id})
+                            # Retry as PUT
+                            endpoint = f"/contacts/{existing_id}"
+                            method = "PUT"
+                            data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+                        else:
+                            raise e
+                    except Exception:
+                        raise e
+                else:
+                    raise e
+            else:
+                self.env["ghl.sync.queue"].create({
+                    "name": partner.name,
+                    "model_name": "res.partner",
+                    "record_id": partner.id,
+                    "action": "push",
+                    "error_message": str(e),
+                    "state": "failed"
+                })
+                raise e
         except Exception as e:
             self.env["ghl.sync.queue"].create({
                 "name": partner.name,
