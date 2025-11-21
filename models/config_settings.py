@@ -121,3 +121,17 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def _reset_last_pull(self):
         self._set_last_pull(contact="", opportunity="", task="", note="")
+
+    def action_ghl_manual_sync(self):
+        """Trigger manual sync from Settings view."""
+        self.env["odoo.ghl.backend"].manual_sync_now()
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Sync Started",
+                "message": "Manual sync has been triggered in the background.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
