@@ -502,8 +502,15 @@ class OdooGHLBackend(models.AbstractModel):
             self._save_last_pull(opportunity=latest.isoformat())
 
     # =================================================================
-    # TASKS / NOTES: placeholders (we wire structure)
     # =================================================================
+    # PIPELINES – FETCH
+    # =================================================================
+    @api.model
+    def get_pipelines(self):
+        cfg = self._get_config()
+        params = {"locationId": cfg["location_id"]}
+        data = self._request("GET", "/opportunities/pipelines", cfg["api_token"], params=params)
+        return data.get("pipelines", [])
     @api.model
     def push_task(self, task):
         cfg = self._get_config()

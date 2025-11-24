@@ -19,13 +19,55 @@ class GHLPipelineMapping(models.Model):
     _description = "GoHighLevel Pipeline Mapping"
     _rec_name = "odoo_stage_id"
 
-    odoo_stage_id = fields.Many2one("crm.stage", string="Odoo Stage", required=True)
+    odoo_stage_id = fields.Many2one("crm.stage", string="Odoo Stage", required=False)
     ghl_pipeline_id = fields.Char(string="GHL Pipeline ID", required=True)
+    ghl_pipeline_name = fields.Char(string="GHL Pipeline Name")
     ghl_stage_id = fields.Char(string="GHL Stage ID", required=True)
+    ghl_stage_name = fields.Char(string="GHL Stage Name")
 
     _sql_constraints = [
         ('odoo_stage_uniq', 'unique(odoo_stage_id)', 'Odoo Stage must be unique!'),
     ]
+
+    @api.model
+    def fetch_pipelines_from_ghl(self):
+        """Fetch pipelines and stages from GHL and create mapping records."""
+        backend = self.env["odoo.ghl.backend"]
+        pipelines = backend.get_pipelines()
+        
+        created_count = 0
+        for p in pipelines:
+            p_id = p.get("id")
+            p_name = p.get("name")
+            for s in p.get("stages", []):
+                s_id = s.get("id")
+                s_name = s.get("name")
+                
+                # Check if mapping exists
+                existing = self.search([
+                    ("ghl_pipeline_id", "=", p_id),
+                    ("ghl_stage_id", "=", s_id)
+                ], limit=1)
+                
+                if not existing:
+                    self.create({
+                        "ghl_pipeline_id": p_id,
+                        "ghl_pipeline_name": p_name,
+                        "ghl_stage_id": s_id,
+                        "ghl_stage_name": s_name,
+                    })
+                    created_count += 1
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Success',
+                'message': f'Fetched {created_count} new pipeline stages from GoHighLevel.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
 class GHLSyncQueue(models.Model):
     _name = "ghl.sync.queue"

@@ -104,6 +104,23 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="view_ghl_pipeline_mapping_tree" model="ir.ui.view">
+        <field name="name">ghl.pipeline.mapping.tree</field>
+        <field name="model">ghl.pipeline.mapping</field>
+        <field name="arch" type="xml">
+            <list string="Pipeline Mapping">
+                <header>
+                    <button name="fetch_pipelines_from_ghl" string="Fetch from GHL" type="object" class="btn-primary"/>
+                </header>
+                <field name="odoo_stage_id"/>
+                <field name="ghl_pipeline_name"/>
+                <field name="ghl_stage_name"/>
+                <field name="ghl_pipeline_id" optional="hide"/>
+                <field name="ghl_stage_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
     <record id="action_ghl_pipeline_mapping" model="ir.actions.act_window">
         <field name="name">Pipeline Mapping</field>
         <field name="res_model">ghl.pipeline.mapping</field>
