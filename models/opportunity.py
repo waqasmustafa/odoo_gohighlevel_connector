@@ -34,7 +34,7 @@ class CrmLead(models.Model):
         cfg = backend._get_config()
         # Define fields that should trigger a sync
         synced_fields = {
-            "name", "planned_revenue", "expected_revenue", "active",
+            "name", "expected_revenue", "active",
             "partner_id", "user_id", "stage_id", "ghl_skip_sync"
         }
         

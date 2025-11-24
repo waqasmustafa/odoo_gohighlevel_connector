@@ -380,7 +380,7 @@ class OdooGHLBackend(models.AbstractModel):
         payload = {
             "locationId": cfg["location_id"],
             "name": lead.name,
-            "monetaryValue": lead.planned_revenue or lead.expected_revenue or 0.0,
+            "monetaryValue": lead.expected_revenue or 0.0,
             "status": "open" if lead.active else "closed",
             "status": "open" if lead.active else "closed",
             "contactId": lead.partner_id and lead.partner_id.ghl_id or None,
@@ -467,7 +467,7 @@ class OdooGHLBackend(models.AbstractModel):
 
             vals = {
                 "name": o.get("name"),
-                "planned_revenue": o.get("monetaryValue") or 0.0,
+                "expected_revenue": o.get("monetaryValue") or 0.0,
                 "type": "opportunity",
                 "active": o.get("status") != "closed",
             }
