@@ -486,6 +486,17 @@ class OdooGHLBackend(models.AbstractModel):
                 if partner:
                     vals["partner_id"] = partner.id
 
+            # Map GHL stage to Odoo stage
+            ghl_pipeline_id = o.get("pipelineId")
+            ghl_stage_id = o.get("pipelineStageId")
+            if ghl_pipeline_id and ghl_stage_id:
+                stage_mapping = self.env["ghl.pipeline.mapping"].sudo().search([
+                    ("ghl_pipeline_id", "=", ghl_pipeline_id),
+                    ("ghl_stage_id", "=", ghl_stage_id)
+                ], limit=1)
+                if stage_mapping and stage_mapping.odoo_stage_id:
+                    vals["stage_id"] = stage_mapping.odoo_stage_id.id
+
             if lead:
                 lead.with_context(ghl_sync_running=True).write(vals)
             else:
