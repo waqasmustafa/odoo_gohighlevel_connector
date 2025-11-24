@@ -450,8 +450,8 @@ class OdooGHLBackend(models.AbstractModel):
             cfg["last_opportunity_pull"]
         )
 
-        # TODO: adjust endpoint/response once you confirm GHL opportunity API
-        data = self._request("GET", "/opportunities/", cfg["api_token"], params=params)
+        # Use /opportunities/search to list opportunities
+        data = self._request("GET", "/opportunities/search", cfg["api_token"], params=params)
         opportunities = data.get("opportunities") or data.get("items") or []
 
         for o in opportunities:
