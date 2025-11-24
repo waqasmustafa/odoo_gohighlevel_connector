@@ -109,9 +109,6 @@
         <field name="model">ghl.pipeline.mapping</field>
         <field name="arch" type="xml">
             <list string="Pipeline Mapping">
-                <header>
-                    <button name="fetch_pipelines_from_ghl" string="Fetch from GHL" type="object" class="btn-primary"/>
-                </header>
                 <field name="odoo_stage_id"/>
                 <field name="ghl_pipeline_name"/>
                 <field name="ghl_stage_name"/>
@@ -120,6 +117,16 @@
             </list>
         </field>
     </record>
+
+    <record id="action_ghl_fetch_pipelines_server" model="ir.actions.server">
+        <field name="name">Fetch from GHL</field>
+        <field name="model_id" ref="model_ghl_pipeline_mapping"/>
+        <field name="binding_model_id" ref="model_ghl_pipeline_mapping"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">action = model.fetch_pipelines_from_ghl()</field>
+    </record>
+
 
     <record id="action_ghl_pipeline_mapping" model="ir.actions.act_window">
         <field name="name">Pipeline Mapping</field>
