@@ -410,6 +410,9 @@ class OdooGHLBackend(models.AbstractModel):
         if lead.ghl_id:
             endpoint = f"/opportunities/{lead.ghl_id}"
             method = "PUT"
+            # Remove fields that GHL rejects in PUT requests
+            payload.pop("locationId", None)
+            payload.pop("stageId", None)
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
