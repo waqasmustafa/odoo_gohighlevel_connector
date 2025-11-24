@@ -439,7 +439,7 @@ class OdooGHLBackend(models.AbstractModel):
             return
 
         params = {
-            "locationId": cfg["location_id"],
+            "location_id": cfg["location_id"],
             "limit": limit,
         }
         if cfg["last_opportunity_pull"]:
