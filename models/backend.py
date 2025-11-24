@@ -397,7 +397,7 @@ class OdooGHLBackend(models.AbstractModel):
             stage_mapping = self.env["ghl.pipeline.mapping"].search([("odoo_stage_id", "=", lead.stage_id.id)], limit=1)
             if stage_mapping:
                 payload["pipelineId"] = stage_mapping.ghl_pipeline_id
-                payload["stageId"] = stage_mapping.ghl_stage_id
+                payload["pipelineStageId"] = stage_mapping.ghl_stage_id  # Use pipelineStageId not stageId
             else:
                 # Raise error if mapping is missing, otherwise GHL will reject with 422
                 raise UserError(_(
@@ -410,9 +410,8 @@ class OdooGHLBackend(models.AbstractModel):
         if lead.ghl_id:
             endpoint = f"/opportunities/{lead.ghl_id}"
             method = "PUT"
-            # Remove fields that GHL rejects in PUT requests
+            # Remove locationId for PUT requests (GHL rejects it)
             payload.pop("locationId", None)
-            payload.pop("stageId", None)
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
