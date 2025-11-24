@@ -117,6 +117,29 @@ class ResConfigSettings(models.TransientModel):
             ICP.set_param("odoo_ghl.last_task_pull", task or "")
         if note is not None:
             ICP.set_param("odoo_ghl.last_note_pull", note or "")
+    @api.model
+    def _reset_last_pull(self):
+        self._set_last_pull(contact="", opportunity="", task="", note="")
+
+    def action_ghl_manual_sync(self):
+        """Trigger manual sync from Settings view."""
+        self.env["odoo.ghl.backend"].manual_sync_now()
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Sync Started",
+                "message": "Manual sync has been triggered in the background.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def action_ghl_test_connection(self):
+        """Test API connection from Settings."""
+        self.ensure_one()
+        self.env["odoo.ghl.backend"].test_api_connection(self.ghl_api_token, self.ghl_location_id)
+        return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
@@ -126,3 +149,7 @@ class ResConfigSettings(models.TransientModel):
                 "sticky": False,
             },
         }
+
+    def action_fetch_pipelines(self):
+        """Button action to fetch pipelines from GHL."""
+        return self.env["ghl.pipeline.mapping"].fetch_pipelines_from_ghl()
