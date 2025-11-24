@@ -1,15 +1,3 @@
-# odoo_gohighlevel_connector/models/backend.py
-import logging
-from datetime import datetime
-
-import requests
-
-from odoo import api, fields, models, _
-from odoo.exceptions import UserError
-
-_logger = logging.getLogger(__name__)
-
-
 class OdooGHLBackend(models.AbstractModel):
     _name = "odoo.ghl.backend"
     _description = "GoHighLevel Sync Backend"
@@ -398,6 +386,12 @@ class OdooGHLBackend(models.AbstractModel):
             if stage_mapping:
                 payload["pipelineId"] = stage_mapping.ghl_pipeline_id
                 payload["stageId"] = stage_mapping.ghl_stage_id
+            else:
+                # Raise error if mapping is missing, otherwise GHL will reject with 422
+                raise UserError(_(
+                    "GoHighLevel Sync Error: No Pipeline Mapping found for Odoo Stage '%s'. "
+                    "Please go to GoHighLevel > Configuration > Pipeline Mapping and configure it."
+                ) % lead.stage_id.name)
 
         endpoint = "/opportunities/"  # TODO: confirm in your GHL docs
         method = "POST"
