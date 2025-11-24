@@ -1,3 +1,15 @@
+# odoo_gohighlevel_connector/models/backend.py
+import logging
+from datetime import datetime
+
+import requests
+
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
+
+
 class OdooGHLBackend(models.AbstractModel):
     _name = "odoo.ghl.backend"
     _description = "GoHighLevel Sync Backend"
