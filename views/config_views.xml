@@ -114,6 +114,19 @@
     </record>
 
     <!-- Mappings Menus -->
+    <record id="view_ghl_user_mapping_list" model="ir.ui.view">
+        <field name="name">ghl.user.mapping.list</field>
+        <field name="model">ghl.user.mapping</field>
+        <field name="arch" type="xml">
+            <list string="User Mapping">
+                <field name="odoo_user_id"/>
+                <field name="ghl_user_name"/>
+                <field name="ghl_user_email"/>
+                <field name="ghl_user_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
     <record id="action_ghl_user_mapping" model="ir.actions.act_window">
         <field name="name">User Mapping</field>
         <field name="res_model">ghl.user.mapping</field>
