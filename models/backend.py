@@ -530,7 +530,7 @@ class OdooGHLBackend(models.AbstractModel):
     @api.model
     def get_users(self):
         cfg = self._get_config()
-        params = {"locationIds": [cfg["location_id"]]}
+        params = {"locationId": cfg["location_id"]}
         data = self._request("GET", "/users/", cfg["api_token"], params=params)
         return data.get("users", [])
     @api.model
