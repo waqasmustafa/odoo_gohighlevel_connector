@@ -194,6 +194,10 @@ class OdooGHLBackend(models.AbstractModel):
             mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", partner.user_id.id)], limit=1)
             if mapping:
                 payload["assignedTo"] = mapping.ghl_user_id
+            else:
+                payload["assignedTo"] = None  # User not mapped, unassign
+        else:
+            payload["assignedTo"] = None  # No user assigned, unassign in GHL
 
         # Lead Source
         # if partner.source_id: # Assuming you want to sync Odoo Source -> GHL Source (requires string match or mapping)
@@ -350,6 +354,19 @@ class OdooGHLBackend(models.AbstractModel):
                 if company_partner:
                     vals["parent_id"] = company_partner.id
                 # Optional: Create company if not found? For now, we only link if exists to avoid duplicates.
+
+            # Map GHL assigned user to Odoo user
+            ghl_assigned_to = c.get("assignedTo")
+            if ghl_assigned_to:
+                user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                    ("ghl_user_id", "=", ghl_assigned_to)
+                ], limit=1)
+                if user_mapping and user_mapping.odoo_user_id:
+                    vals["user_id"] = user_mapping.odoo_user_id.id
+                else:
+                    vals["user_id"] = False  # User not mapped, unassign
+            else:
+                vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
 
             if partner:
                 partner.with_context(ghl_sync_running=True).write(vals)
