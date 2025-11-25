@@ -499,6 +499,15 @@ class OdooGHLBackend(models.AbstractModel):
                 if stage_mapping and stage_mapping.odoo_stage_id:
                     vals["stage_id"] = stage_mapping.odoo_stage_id.id
 
+            # Map GHL assigned user to Odoo user
+            ghl_assigned_to = o.get("assignedTo")
+            if ghl_assigned_to:
+                user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                    ("ghl_user_id", "=", ghl_assigned_to)
+                ], limit=1)
+                if user_mapping and user_mapping.odoo_user_id:
+                    vals["user_id"] = user_mapping.odoo_user_id.id
+
             if lead:
                 lead.with_context(ghl_sync_running=True).write(vals)
             else:
