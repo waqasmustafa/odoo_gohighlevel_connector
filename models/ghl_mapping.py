@@ -6,7 +6,7 @@ class GHLUserMapping(models.Model):
     _description = "GoHighLevel User Mapping"
     _rec_name = "odoo_user_id"
 
-    odoo_user_id = fields.Many2one("res.users", string="Odoo User", required=True)
+    odoo_user_id = fields.Many2one("res.users", string="Odoo User", required=False)
     ghl_user_id = fields.Char(string="GHL User ID", required=True, help="User ID from GoHighLevel")
     ghl_user_name = fields.Char(string="GHL User Name", help="Name from GoHighLevel for reference")
     ghl_user_email = fields.Char(string="GHL User Email", help="Email from GoHighLevel for reference")
