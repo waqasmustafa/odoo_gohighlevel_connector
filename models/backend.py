@@ -507,6 +507,12 @@ class OdooGHLBackend(models.AbstractModel):
                 ], limit=1)
                 if user_mapping and user_mapping.odoo_user_id:
                     vals["user_id"] = user_mapping.odoo_user_id.id
+                else:
+                    # GHL user not mapped, leave unassigned
+                    vals["user_id"] = False
+            else:
+                # No assignment in GHL, unassign in Odoo
+                vals["user_id"] = False
 
             if lead:
                 lead.with_context(ghl_sync_running=True).write(vals)
