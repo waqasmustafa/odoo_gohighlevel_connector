@@ -391,6 +391,10 @@ class OdooGHLBackend(models.AbstractModel):
             mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", lead.user_id.id)], limit=1)
             if mapping:
                 payload["assignedTo"] = mapping.ghl_user_id
+            else:
+                payload["assignedTo"] = None  # User not mapped, unassign
+        else:
+            payload["assignedTo"] = None  # No user assigned, unassign in GHL
 
         # Pipeline & Stage
         if lead.stage_id:
@@ -507,6 +511,10 @@ class OdooGHLBackend(models.AbstractModel):
                 ], limit=1)
                 if user_mapping and user_mapping.odoo_user_id:
                     vals["user_id"] = user_mapping.odoo_user_id.id
+                else:
+                    vals["user_id"] = False  # User not mapped, unassign
+            else:
+                vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
 
             if lead:
                 lead.with_context(ghl_sync_running=True).write(vals)
