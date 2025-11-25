@@ -8,11 +8,47 @@ class GHLUserMapping(models.Model):
 
     odoo_user_id = fields.Many2one("res.users", string="Odoo User", required=True)
     ghl_user_id = fields.Char(string="GHL User ID", required=True, help="User ID from GoHighLevel")
+    ghl_user_name = fields.Char(string="GHL User Name", help="Name from GoHighLevel for reference")
+    ghl_user_email = fields.Char(string="GHL User Email", help="Email from GoHighLevel for reference")
     
     _sql_constraints = [
         ('odoo_user_uniq', 'unique(odoo_user_id)', 'Odoo User must be unique!'),
         ('ghl_user_uniq', 'unique(ghl_user_id)', 'GHL User ID must be unique!'),
     ]
+
+    @api.model
+    def fetch_users_from_ghl(self):
+        """Fetch users from GHL and create mapping records."""
+        backend = self.env["odoo.ghl.backend"]
+        users = backend.get_users()
+        
+        created_count = 0
+        for u in users:
+            u_id = u.get("id")
+            u_name = u.get("name") or u.get("firstName", "") + " " + u.get("lastName", "")
+            u_email = u.get("email")
+            
+            # Check if mapping exists
+            existing = self.search([("ghl_user_id", "=", u_id)], limit=1)
+            
+            if not existing:
+                self.create({
+                    "ghl_user_id": u_id,
+                    "ghl_user_name": u_name.strip(),
+                    "ghl_user_email": u_email,
+                })
+                created_count += 1
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Success',
+                'message': f'Fetched {created_count} new users from GoHighLevel.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
 class GHLPipelineMapping(models.Model):
     _name = "ghl.pipeline.mapping"

@@ -515,7 +515,6 @@ class OdooGHLBackend(models.AbstractModel):
             self._save_last_pull(opportunity=latest.isoformat())
 
     # =================================================================
-    # =================================================================
     # PIPELINES – FETCH
     # =================================================================
     @api.model
@@ -524,6 +523,16 @@ class OdooGHLBackend(models.AbstractModel):
         params = {"locationId": cfg["location_id"]}
         data = self._request("GET", "/opportunities/pipelines", cfg["api_token"], params=params)
         return data.get("pipelines", [])
+
+    # =================================================================
+    # USERS – FETCH
+    # =================================================================
+    @api.model
+    def get_users(self):
+        cfg = self._get_config()
+        params = {"locationIds": [cfg["location_id"]]}
+        data = self._request("GET", "/users/", cfg["api_token"], params=params)
+        return data.get("users", [])
     @api.model
     def push_task(self, task):
         cfg = self._get_config()

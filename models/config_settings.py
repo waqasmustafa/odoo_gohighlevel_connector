@@ -153,3 +153,7 @@ class ResConfigSettings(models.TransientModel):
     def action_fetch_pipelines(self):
         """Button action to fetch pipelines from GHL."""
         return self.env["ghl.pipeline.mapping"].fetch_pipelines_from_ghl()
+
+    def action_fetch_users(self):
+        """Button action to fetch users from GHL."""
+        return self.env["ghl.user.mapping"].fetch_users_from_ghl()

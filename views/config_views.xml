@@ -76,15 +76,21 @@
                     <setting string="Manual Sync Now"
                              help="Click 'Save' first, then use this button to pull changes immediately.">
                         <div class="row">
-                            <div class="col-6">
+                            <div class="col-4">
                                 <button name="action_ghl_manual_sync"
                                         string="Sync Now"
                                         type="object"
                                         class="btn btn-primary"/>
                             </div>
-                            <div class="col-6">
+                            <div class="col-4">
                                 <button name="action_fetch_pipelines"
                                         string="Fetch Pipelines"
+                                        type="object"
+                                        class="btn btn-secondary"/>
+                            </div>
+                            <div class="col-4">
+                                <button name="action_fetch_users"
+                                        string="Fetch Users"
                                         type="object"
                                         class="btn btn-secondary"/>
                             </div>
