@@ -575,30 +575,36 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
 
-        # TODO: adjust to actual GHL task API
         payload = {
-            "locationId": cfg["location_id"],
             "title": task.name,
-            "description": task.description or "",
-            "dueDate": task.date_deadline and task.date_deadline.isoformat(),
+            "body": task.description or "",
+            "dueDate": task.date_deadline.isoformat() if task.date_deadline else None,
+            "completed": task.stage_id.fold if task.stage_id else False,
         }
         
-        # Assignee
+        # Assignee (use first user if multiple)
         if task.user_ids:
-            # GHL tasks usually have one assignee, take the first one
             user = task.user_ids[0]
             mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", user.id)], limit=1)
             if mapping:
                 payload["assignedTo"] = mapping.ghl_user_id
+            else:
+                payload["assignedTo"] = None  # User not mapped
+        else:
+            payload["assignedTo"] = None  # No user assigned
         
         # Related Contact
         if task.partner_id and task.partner_id.ghl_id:
             payload["contactId"] = task.partner_id.ghl_id
-        endpoint = "/tasks/"
+
+        endpoint = "/tasks"
         method = "POST"
         if task.ghl_id:
             endpoint = f"/tasks/{task.ghl_id}"
             method = "PUT"
+            # Remove locationId for PUT
+            if "locationId" in payload:
+                payload.pop("locationId")
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
@@ -612,17 +618,16 @@ class OdooGHLBackend(models.AbstractModel):
                 "state": "failed"
             })
             raise e
+        
         t = data.get("task") or data
         ghl_id = t.get("id")
         updated_at = t.get("updatedAt")
         if ghl_id:
-            task.with_context(ghl_sync_running=True).write(
-                {
-                    "ghl_id": ghl_id,
-                    "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
-                    "ghl_last_synced_at": fields.Datetime.now(),
-                }
-            )
+            task.with_context(ghl_sync_running=True).write({
+                "ghl_id": ghl_id,
+                "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
+                "ghl_last_synced_at": fields.Datetime.now(),
+            })
 
     @api.model
     def pull_tasks(self):
@@ -631,7 +636,78 @@ class OdooGHLBackend(models.AbstractModel):
             return
         if cfg["sync_direction"] not in ("ghl_to_odoo", "both"):
             return
-        # TODO: implement when GHL task API confirmed
+
+        Task = self.env["project.task"].sudo()
+        params = {"limit": 100}
+        
+        # Get last pull timestamp
+        last_pull = self.env["ir.config_parameter"].sudo().get_param("odoo_ghl.last_task_pull")
+        if last_pull:
+            params["startAfterDate"] = last_pull
+
+        data = self._request("GET", "/tasks", cfg["api_token"], params=params)
+        tasks = data.get("tasks", [])
+
+        latest = None
+        for t in tasks:
+            ghl_id = t.get("id")
+            if not ghl_id:
+                continue
+
+            updated_at = self._parse_remote_dt(t.get("updatedAt"))
+            if latest is None or (updated_at and updated_at > latest):
+                latest = updated_at
+
+            task = Task.search([("ghl_id", "=", ghl_id)], limit=1)
+
+            vals = {
+                "name": t.get("title") or "Untitled Task",
+                "description": t.get("body"),
+                "date_deadline": self._parse_remote_dt(t.get("dueDate")),
+            }
+
+            # Link to contact
+            contact_id = t.get("contactId")
+            if contact_id:
+                partner = self.env["res.partner"].sudo().search([
+                    ("ghl_id", "=", contact_id)
+                ], limit=1)
+                if partner:
+                    vals["partner_id"] = partner.id
+
+            # Map assigned user
+            ghl_assigned_to = t.get("assignedTo")
+            if ghl_assigned_to:
+                user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                    ("ghl_user_id", "=", ghl_assigned_to)
+                ], limit=1)
+                if user_mapping and user_mapping.odoo_user_id:
+                    vals["user_ids"] = [(6, 0, [user_mapping.odoo_user_id.id])]
+                else:
+                    vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+            else:
+                vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+
+            # Completion status (map to folded stage)
+            if t.get("completed"):
+                done_stage = self.env["project.task.type"].sudo().search([
+                    ("fold", "=", True)
+                ], limit=1)
+                if done_stage:
+                    vals["stage_id"] = done_stage.id
+            
+            if task:
+                task.with_context(ghl_sync_running=True).write(vals)
+            else:
+                vals.update({
+                    "ghl_id": ghl_id,
+                    "ghl_remote_updated_at": updated_at,
+                    "ghl_last_synced_at": fields.Datetime.now(),
+                })
+                Task.with_context(ghl_sync_running=True).create(vals)
+
+        if latest:
+            self._save_last_pull(task=latest.isoformat())
 
     @api.model
     def push_note(self, note):
