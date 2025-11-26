@@ -142,9 +142,15 @@ class OdooGHLBackend(models.AbstractModel):
         if not value:
             return False
         try:
-            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        except Exception:
+            # Handle ISO format with milliseconds and Z timezone
+            from dateutil import parser
+            dt = parser.isoparse(value)
+            # Convert to naive datetime in UTC
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(pytz.UTC).replace(tzinfo=None)
+            return dt
+        except Exception as e:
+            _logger.error(f"Failed to parse datetime '{value}': {str(e)}")
             return False
 
     # =================================================================
