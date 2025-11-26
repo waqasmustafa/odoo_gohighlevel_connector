@@ -8,13 +8,11 @@
         <field name="arch" type="xml">
             <!-- Add Customer field after Assignees -->
             <xpath expr="//field[@name='user_ids']" position="after">
-                <label for="partner_id" string="Customer (Required for GHL)"/>
-                <div class="o_row">
-                    <field name="partner_id" 
-                           placeholder="Select contact to sync with GoHighLevel"
-                           widget="many2one_avatar_user"
-                           options="{'no_create': True}"/>
-                </div>
+                <field name="partner_id" 
+                       string="Customer (Required for GHL)"
+                       placeholder="Select contact to sync with GoHighLevel"
+                       widget="many2one_avatar_user"
+                       options="{'no_create': True}"/>
             </xpath>
         </field>
     </record>
