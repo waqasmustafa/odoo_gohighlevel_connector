@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Add Customer field to task form (always visible) -->
+    <!-- Make Customer field always visible (remove project dependency) -->
     <record id="view_task_form_ghl_customer" model="ir.ui.view">
         <field name="name">project.task.form.ghl.customer</field>
         <field name="model">project.task</field>
         <field name="inherit_id" ref="project.view_task_form2"/>
         <field name="arch" type="xml">
-            <!-- Add Customer field before Tags -->
-            <xpath expr="//field[@name='tag_ids']" position="before">
-                <field name="partner_id" 
-                       string="Customer (Required for GHL)"
-                       placeholder="Select contact to sync with GoHighLevel"
-                       widget="many2one_avatar_user"/>
+            <!-- Force partner_id to always be visible and update label -->
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="invisible">False</attribute>
+                <attribute name="string">Customer (Required for GHL)</attribute>
+                <attribute name="placeholder">Select contact to sync with GoHighLevel</attribute>
             </xpath>
         </field>
     </record>
