@@ -6,14 +6,17 @@
         <field name="model">project.task</field>
         <!-- Inherit the standard task form view -->
         <field name="inherit_id" ref="project.view_task_form2"/>
-        <field name="priority" eval="99"/>
+        <field name="priority" eval="9999"/>
         <field name="arch" type="xml">
             
-            <!-- Target the exact partner_id field with class o_task_customer_field -->
-            <xpath expr="//field[@name='partner_id'][@class='o_task_customer_field']" position="attributes">
-                <!-- Force visible by setting invisible to False -->
-                <attribute name="invisible">False</attribute>
-            </xpath>
+            <!-- Replace the partner_id field - simpler XPath -->
+            <field name="partner_id" widget="res_partner_many2one" position="replace">
+                <field name="partner_id" 
+                       nolabel="0" 
+                       widget="res_partner_many2one" 
+                       class="o_task_customer_field"
+                       placeholder="Select a contact (required for GHL sync)"/>
+            </field>
 
         </field>
     </record>
