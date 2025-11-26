@@ -297,9 +297,9 @@ class OdooGHLBackend(models.AbstractModel):
             "locationId": cfg["location_id"],
             "limit": limit,
         }
-
-        if cfg["last_contact_pull"]:
-            params["updatedAt__gt"] = cfg["last_contact_pull"]
+        
+        # Note: GHL Contacts API doesn't support updatedAt filtering
+        # We'll fetch all and filter in Odoo based on updatedAt field
 
         Partner = self.env["res.partner"].sudo()
         latest = cfg["last_contact_pull"] and self._parse_remote_dt(
@@ -317,6 +317,11 @@ class OdooGHLBackend(models.AbstractModel):
             updated_at = self._parse_remote_dt(
                 c.get("dateUpdated") or c.get("updatedAt")
             )
+            
+            # Skip if not updated since last pull (client-side filtering)
+            if latest and updated_at and updated_at <= latest:
+                continue
+            
             if latest is None or (updated_at and updated_at > latest):
                 latest = updated_at
 
