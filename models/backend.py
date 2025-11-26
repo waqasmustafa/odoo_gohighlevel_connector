@@ -149,6 +149,8 @@ class OdooGHLBackend(models.AbstractModel):
             # Convert to naive datetime in UTC
             if dt.tzinfo is not None:
                 dt = dt.astimezone(pytz.UTC).replace(tzinfo=None)
+            # Remove microseconds for Odoo compatibility
+            dt = dt.replace(microsecond=0)
             return dt
         except Exception as e:
             _logger.error(f"Failed to parse datetime '{value}': {str(e)}")
