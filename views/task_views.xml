@@ -8,15 +8,10 @@
         <field name="inherit_id" ref="project.view_task_form2"/>
         <field name="arch" type="xml">
             
-            <!-- Replace the original partner_id field to remove invisible condition -->
-            <xpath expr="//field[@name='partner_id' and @class='o_task_customer_field']" position="replace">
-                <!-- Same field, but WITHOUT invisible="not project_id" -->
-                <field name="partner_id"
-                       nolabel="0"
-                       widget="res_partner_many2one"
-                       class="o_task_customer_field"
-                       placeholder="Select a contact (required for GHL sync)"/>
-            </xpath>
+            <!-- Remove invisible condition from partner_id field using attributes -->
+            <field name="partner_id" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </field>
 
         </field>
     </record>
