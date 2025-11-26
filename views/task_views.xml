@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit project.task form to add Customer field for GHL sync -->
+    <record id="view_task_form_ghl_customer" model="ir.ui.view">
+        <field name="name">project.task.form.ghl.customer</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <!-- Add Customer field after Project field -->
+            <xpath expr="//field[@name='project_id']" position="after">
+                <field name="partner_id" string="Customer" 
+                       placeholder="Select a contact (required for GHL sync)"
+                       options="{'no_create': True}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
