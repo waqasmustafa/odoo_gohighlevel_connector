@@ -6,11 +6,12 @@
         <field name="model">project.task</field>
         <field name="inherit_id" ref="project.view_task_form2"/>
         <field name="arch" type="xml">
-            <!-- Add Customer field after Project field -->
-            <xpath expr="//field[@name='project_id']" position="after">
-                <field name="partner_id" string="Customer" 
-                       placeholder="Select a contact (required for GHL sync)"
-                       options="{'no_create': True}"/>
+            <!-- Add Customer field at top, always visible -->
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="partner_id" string="Customer (Required for GHL)" 
+                       placeholder="Select contact to sync with GoHighLevel"
+                       class="o_field_highlight"
+                       widget="many2one_avatar_user"/>
             </xpath>
         </field>
     </record>
