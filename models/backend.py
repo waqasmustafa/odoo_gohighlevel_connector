@@ -787,6 +787,18 @@ class OdooGHLBackend(models.AbstractModel):
     def cron_poll_changes(self):
         """Called by cron: incremental polling GHL → Odoo."""
         cfg = self._get_config()
+        
+        # Update cron interval dynamically from settings
+        try:
+            cron = self.env.ref('odoo_gohighlevel_connector.ir_cron_odoo_ghl_poll_changes', raise_if_not_found=False)
+            if cron and cron.interval_number != cfg.get("poll_interval_minutes", 10):
+                cron.sudo().write({
+                    'interval_number': cfg.get("poll_interval_minutes", 10)
+                })
+                _logger.info(f"Cron interval updated to {cfg.get('poll_interval_minutes', 10)} minutes")
+        except Exception as e:
+            _logger.warning(f"Could not update cron interval: {str(e)}")
+        
         if cfg["sync_contacts"]:
             self.pull_contacts()
         if cfg["sync_opportunities"]:
