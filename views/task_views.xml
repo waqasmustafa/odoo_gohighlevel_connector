@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Inherit project.task form to add Customer field for GHL sync -->
+    <!-- Inherit project.task form to make Customer field always visible for GHL sync -->
     <record id="view_task_form_ghl_customer" model="ir.ui.view">
         <field name="name">project.task.form.ghl.customer</field>
         <field name="model">project.task</field>
         <field name="inherit_id" ref="project.view_task_form2"/>
         <field name="arch" type="xml">
-            <!-- Add Customer field at top, always visible -->
-            <xpath expr="//field[@name='name']" position="after">
-                <field name="partner_id" string="Customer (Required for GHL)" 
-                       placeholder="Select contact to sync with GoHighLevel"
-                       class="o_field_highlight"
-                       widget="many2one_avatar_user"/>
+            <!-- Make partner_id field always visible and required for GHL -->
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="invisible">0</attribute>
+                <attribute name="string">Customer (Required for GHL)</attribute>
+                <attribute name="placeholder">Select contact to sync with GoHighLevel</attribute>
+                <attribute name="widget">many2one_avatar_user</attribute>
             </xpath>
         </field>
     </record>
