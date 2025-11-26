@@ -669,9 +669,19 @@ class OdooGHLBackend(models.AbstractModel):
                     vals = {
                         "name": t.get("title") or "Untitled Task",
                         "description": t.get("body"),
-                        "date_deadline": self._parse_remote_dt(t.get("dueDate")),
                         "partner_id": contact.id,  # Link to the contact we're fetching from
                     }
+                    
+                    # Parse due date
+                    due_date_str = t.get("dueDate")
+                    if due_date_str:
+                        due_date = self._parse_remote_dt(due_date_str)
+                        if due_date:
+                            vals["date_deadline"] = due_date
+                        else:
+                            _logger.warning(f"Failed to parse dueDate: {due_date_str}")
+                    else:
+                        _logger.debug(f"Task {t.get('title')} has no dueDate")
 
                     # Map assigned user
                     ghl_assigned_to = t.get("assignedTo")
