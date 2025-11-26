@@ -6,6 +6,7 @@ import requests
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+from odoo.tools import html2plaintext
 
 _logger = logging.getLogger(__name__)
 
@@ -577,7 +578,7 @@ class OdooGHLBackend(models.AbstractModel):
 
         payload = {
             "title": task.name,
-            "body": task.description or "",
+            "body": html2plaintext(task.description) if task.description else "",
             "dueDate": task.date_deadline.isoformat() if task.date_deadline else None,
             "completed": task.stage_id.fold if task.stage_id else False,
         }
@@ -642,8 +643,9 @@ class OdooGHLBackend(models.AbstractModel):
         Partner = self.env["res.partner"].sudo()
         
         # GHL tasks are contact-specific, so we need to fetch from each contact
-        # Get all contacts with ghl_id
-        contacts = Partner.search([("ghl_id", "!=", False)])
+        # To optimize, only fetch from contacts that have been recently updated
+        # or limit to a reasonable number to avoid too many API calls
+        contacts = Partner.search([("ghl_id", "!=", False)], limit=50, order="write_date desc")
         
         latest = None
         all_tasks = []
