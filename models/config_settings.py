@@ -74,12 +74,28 @@ class ResConfigSettings(models.TransientModel):
             ghl_poll_interval_minutes=int(
                 ICP.get_param("odoo_ghl.poll_interval_minutes", default="10")
             ),
-            ghl_last_contact_pull=ICP.get_param("odoo_ghl.last_contact_pull") or False,
-            ghl_last_opportunity_pull=ICP.get_param("odoo_ghl.last_opportunity_pull")
-            or False,
-            ghl_last_task_pull=ICP.get_param("odoo_ghl.last_task_pull") or False,
-            ghl_last_note_pull=ICP.get_param("odoo_ghl.last_note_pull") or False,
         )
+        
+        # Parse datetime fields safely (remove microseconds if present)
+        for field_name, param_name in [
+            ("ghl_last_contact_pull", "odoo_ghl.last_contact_pull"),
+            ("ghl_last_opportunity_pull", "odoo_ghl.last_opportunity_pull"),
+            ("ghl_last_task_pull", "odoo_ghl.last_task_pull"),
+            ("ghl_last_note_pull", "odoo_ghl.last_note_pull"),
+        ]:
+            value = ICP.get_param(param_name)
+            if value:
+                try:
+                    # Parse and remove microseconds
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(value.replace('T', ' ').replace('Z', ''))
+                    dt = dt.replace(microsecond=0)
+                    res[field_name] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    res[field_name] = False
+            else:
+                res[field_name] = False
+        
         return res
 
     # ---------------------------------------------------------------
