@@ -485,8 +485,8 @@ class OdooGHLBackend(models.AbstractModel):
             "location_id": cfg["location_id"],
             "limit": limit,
         }
-        if cfg["last_opportunity_pull"]:
-            params["updatedAt__gt"] = cfg["last_opportunity_pull"]
+        # Note: GHL Opportunities API doesn't support updatedAt filtering
+        # We'll fetch all and filter in Odoo based on updatedAt field
 
         Lead = self.env["crm.lead"].sudo()
         latest = cfg["last_opportunity_pull"] and self._parse_remote_dt(
@@ -503,6 +503,11 @@ class OdooGHLBackend(models.AbstractModel):
                 continue
 
             updated_at = self._parse_remote_dt(o.get("updatedAt"))
+            
+            # Skip if not updated since last pull (client-side filtering)
+            if latest and updated_at and updated_at <= latest:
+                continue
+            
             if latest is None or (updated_at and updated_at > latest):
                 latest = updated_at
 
