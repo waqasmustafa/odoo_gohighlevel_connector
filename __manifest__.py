@@ -17,6 +17,7 @@
     "data": [
         "security/ir.model.access.csv",
         "views/config_views.xml",
+        "views/task_views.xml",
         "data/cron.xml",
     ],
     "installable": True,
