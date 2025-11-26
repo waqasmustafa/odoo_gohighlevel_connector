@@ -6,12 +6,14 @@
         <field name="model">project.task</field>
         <!-- Inherit the standard task form view -->
         <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="priority" eval="99"/>
         <field name="arch" type="xml">
             
-            <!-- Remove invisible condition from partner_id field using attributes -->
-            <field name="partner_id" position="attributes">
-                <attribute name="invisible">0</attribute>
-            </field>
+            <!-- Target the exact partner_id field with class o_task_customer_field -->
+            <xpath expr="//field[@name='partner_id'][@class='o_task_customer_field']" position="attributes">
+                <!-- Force visible by setting invisible to False -->
+                <attribute name="invisible">False</attribute>
+            </xpath>
 
         </field>
     </record>
