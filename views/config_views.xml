@@ -46,10 +46,22 @@
                     <setting string="What To Sync"
                              help="Enable or disable different record types.">
                         <div class="row">
-                            <field name="ghl_sync_contacts" class="col-3"/>
-                            <field name="ghl_sync_opportunities" class="col-3"/>
-                            <field name="ghl_sync_tasks" class="col-3"/>
-                            <field name="ghl_sync_notes" class="col-3"/>
+                            <div class="col-3">
+                                <field name="ghl_sync_contacts"/>
+                                <label for="ghl_sync_contacts" string="Contacts"/>
+                            </div>
+                            <div class="col-3">
+                                <field name="ghl_sync_opportunities"/>
+                                <label for="ghl_sync_opportunities" string="Opportunities"/>
+                            </div>
+                            <div class="col-3">
+                                <field name="ghl_sync_tasks"/>
+                                <label for="ghl_sync_tasks" string="Tasks"/>
+                            </div>
+                            <div class="col-3">
+                                <field name="ghl_sync_notes"/>
+                                <label for="ghl_sync_notes" string="Notes"/>
+                            </div>
                         </div>
                     </setting>
 
