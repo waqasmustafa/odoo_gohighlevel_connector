@@ -593,18 +593,19 @@ class OdooGHLBackend(models.AbstractModel):
         else:
             payload["assignedTo"] = None  # No user assigned
         
-        # Related Contact
-        if task.partner_id and task.partner_id.ghl_id:
-            payload["contactId"] = task.partner_id.ghl_id
+        # Related Contact (REQUIRED for GHL tasks)
+        if not (task.partner_id and task.partner_id.ghl_id):
+            # GHL tasks require a contact - skip if no contact linked
+            _logger.warning(f"Task '{task.name}' skipped: no contact linked (GHL tasks require contactId)")
+            return
+        
+        contact_id = task.partner_id.ghl_id
 
-        endpoint = "/tasks"
+        endpoint = f"/contacts/{contact_id}/tasks"
         method = "POST"
         if task.ghl_id:
-            endpoint = f"/tasks/{task.ghl_id}"
+            endpoint = f"/contacts/{contact_id}/tasks/{task.ghl_id}"
             method = "PUT"
-            # Remove locationId for PUT
-            if "locationId" in payload:
-                payload.pop("locationId")
 
         try:
             data = self._request(method, endpoint, cfg["api_token"], payload=payload)
@@ -638,73 +639,73 @@ class OdooGHLBackend(models.AbstractModel):
             return
 
         Task = self.env["project.task"].sudo()
-        params = {"limit": 100}
+        Partner = self.env["res.partner"].sudo()
         
-        # Get last pull timestamp
-        last_pull = self.env["ir.config_parameter"].sudo().get_param("odoo_ghl.last_task_pull")
-        if last_pull:
-            params["startAfterDate"] = last_pull
-
-        data = self._request("GET", "/tasks", cfg["api_token"], params=params)
-        tasks = data.get("tasks", [])
-
+        # GHL tasks are contact-specific, so we need to fetch from each contact
+        # Get all contacts with ghl_id
+        contacts = Partner.search([("ghl_id", "!=", False)])
+        
         latest = None
-        for t in tasks:
-            ghl_id = t.get("id")
-            if not ghl_id:
+        all_tasks = []
+
+        # Fetch tasks for each contact
+        for contact in contacts:
+            try:
+                endpoint = f"/contacts/{contact.ghl_id}/tasks"
+                data = self._request("GET", endpoint, cfg["api_token"])
+                tasks = data.get("tasks", [])
+                
+                for t in tasks:
+                    ghl_id = t.get("id")
+                    if not ghl_id:
+                        continue
+
+                    updated_at = self._parse_remote_dt(t.get("updatedAt"))
+                    if latest is None or (updated_at and updated_at > latest):
+                        latest = updated_at
+
+                    task = Task.search([("ghl_id", "=", ghl_id)], limit=1)
+
+                    vals = {
+                        "name": t.get("title") or "Untitled Task",
+                        "description": t.get("body"),
+                        "date_deadline": self._parse_remote_dt(t.get("dueDate")),
+                        "partner_id": contact.id,  # Link to the contact we're fetching from
+                    }
+
+                    # Map assigned user
+                    ghl_assigned_to = t.get("assignedTo")
+                    if ghl_assigned_to:
+                        user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                            ("ghl_user_id", "=", ghl_assigned_to)
+                        ], limit=1)
+                        if user_mapping and user_mapping.odoo_user_id:
+                            vals["user_ids"] = [(6, 0, [user_mapping.odoo_user_id.id])]
+                        else:
+                            vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+                    else:
+                        vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+
+                    # Completion status (map to folded stage)
+                    if t.get("completed"):
+                        done_stage = self.env["project.task.type"].sudo().search([
+                            ("fold", "=", True)
+                        ], limit=1)
+                        if done_stage:
+                            vals["stage_id"] = done_stage.id
+                    
+                    if task:
+                        task.with_context(ghl_sync_running=True).write(vals)
+                    else:
+                        vals.update({
+                            "ghl_id": ghl_id,
+                            "ghl_remote_updated_at": updated_at,
+                            "ghl_last_synced_at": fields.Datetime.now(),
+                        })
+                        Task.with_context(ghl_sync_running=True).create(vals)
+            except Exception as e:
+                _logger.error(f"Error fetching tasks for contact {contact.name}: {str(e)}")
                 continue
-
-            updated_at = self._parse_remote_dt(t.get("updatedAt"))
-            if latest is None or (updated_at and updated_at > latest):
-                latest = updated_at
-
-            task = Task.search([("ghl_id", "=", ghl_id)], limit=1)
-
-            vals = {
-                "name": t.get("title") or "Untitled Task",
-                "description": t.get("body"),
-                "date_deadline": self._parse_remote_dt(t.get("dueDate")),
-            }
-
-            # Link to contact
-            contact_id = t.get("contactId")
-            if contact_id:
-                partner = self.env["res.partner"].sudo().search([
-                    ("ghl_id", "=", contact_id)
-                ], limit=1)
-                if partner:
-                    vals["partner_id"] = partner.id
-
-            # Map assigned user
-            ghl_assigned_to = t.get("assignedTo")
-            if ghl_assigned_to:
-                user_mapping = self.env["ghl.user.mapping"].sudo().search([
-                    ("ghl_user_id", "=", ghl_assigned_to)
-                ], limit=1)
-                if user_mapping and user_mapping.odoo_user_id:
-                    vals["user_ids"] = [(6, 0, [user_mapping.odoo_user_id.id])]
-                else:
-                    vals["user_ids"] = [(5, 0, 0)]  # Clear all users
-            else:
-                vals["user_ids"] = [(5, 0, 0)]  # Clear all users
-
-            # Completion status (map to folded stage)
-            if t.get("completed"):
-                done_stage = self.env["project.task.type"].sudo().search([
-                    ("fold", "=", True)
-                ], limit=1)
-                if done_stage:
-                    vals["stage_id"] = done_stage.id
-            
-            if task:
-                task.with_context(ghl_sync_running=True).write(vals)
-            else:
-                vals.update({
-                    "ghl_id": ghl_id,
-                    "ghl_remote_updated_at": updated_at,
-                    "ghl_last_synced_at": fields.Datetime.now(),
-                })
-                Task.with_context(ghl_sync_running=True).create(vals)
 
         if latest:
             self._save_last_pull(task=latest.isoformat())
