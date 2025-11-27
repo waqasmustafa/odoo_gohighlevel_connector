@@ -120,6 +120,22 @@ class ResConfigSettings(models.TransientModel):
             "odoo_ghl.poll_interval_minutes",
             str(self.ghl_poll_interval_minutes or 10),
         )
+        
+        # Update cron interval immediately when settings are saved
+        try:
+            cron = self.env.ref('odoo_gohighlevel_connector.ir_cron_odoo_ghl_poll_changes', raise_if_not_found=False)
+            if cron:
+                new_interval = self.ghl_poll_interval_minutes or 10
+                if cron.interval_number != new_interval:
+                    cron.sudo().write({
+                        'interval_number': new_interval
+                    })
+        except Exception as e:
+            # Log error but don't block settings save
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"Could not update cron interval: {str(e)}")
+
 
     # small helpers so backend can update timestamps
     @api.model
