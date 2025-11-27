@@ -85,22 +85,22 @@
                         <div class="row mb-2">
                             <div class="col-6">
                                 <label for="ghl_last_contact_pull" string="Contacts" class="fw-bold d-block"/>
-                                <field name="ghl_last_contact_pull" readonly="1" nolabel="1" widget="datetime"/>
+                                <field name="ghl_last_contact_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
                             </div>
                             <div class="col-6">
                                 <label for="ghl_last_opportunity_pull" string="Opportunities" class="fw-bold d-block"/>
-                                <field name="ghl_last_opportunity_pull" readonly="1" nolabel="1" widget="datetime"/>
+                                <field name="ghl_last_opportunity_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
                             </div>
                         </div>
                         <!-- Row 2: Tasks and Notes -->
                         <div class="row">
                             <div class="col-6">
                                 <label for="ghl_last_task_pull" string="Tasks" class="fw-bold d-block"/>
-                                <field name="ghl_last_task_pull" readonly="1" nolabel="1" widget="datetime"/>
+                                <field name="ghl_last_task_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
                             </div>
                             <div class="col-6">
                                 <label for="ghl_last_note_pull" string="Notes" class="fw-bold d-block"/>
-                                <field name="ghl_last_note_pull" readonly="1" nolabel="1" widget="datetime"/>
+                                <field name="ghl_last_note_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
                             </div>
                         </div>
                     </setting>
