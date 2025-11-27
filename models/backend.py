@@ -6,7 +6,10 @@ import pytz
 import requests
 
 from odoo import api, fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+import re
+import json
 
 _logger = logging.getLogger(__name__)
 
@@ -761,29 +764,60 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
 
-        # TODO: adjust to actual GHL notes/comments API
+        # Identify Contact ID from the note's related record
+        contact_id = None
+        if note.model == 'res.partner':
+            partner = self.env['res.partner'].browse(note.res_id)
+            if partner.ghl_id:
+                contact_id = partner.ghl_id
+        elif note.model == 'crm.lead':
+            lead = self.env['crm.lead'].browse(note.res_id)
+            if lead.partner_id and lead.partner_id.ghl_id:
+                contact_id = lead.partner_id.ghl_id
+        
+        if not contact_id:
+            return # Skip if no linked GHL contact found
+
+        # Clean HTML from body (GHL notes are text-based)
+        clean_body = re.sub('<[^<]+?>', '', note.body or "")
+        clean_body = clean_body.strip()
+        
+        if not clean_body:
+            return
+
         payload = {
-            "locationId": cfg["location_id"],
-            "content": note.body or "",
+            "body": clean_body,
         }
-        endpoint = "/notes/"
+        
+        # Map User (Author)
+        if note.author_id and note.author_id.user_ids:
+            odoo_user = note.author_id.user_ids[0]
+            mapping = self.env["ghl.user.mapping"].search([("odoo_user_id", "=", odoo_user.id)], limit=1)
+            if mapping:
+                payload["userId"] = mapping.ghl_user_id
+
+        endpoint = f"/contacts/{contact_id}/notes"
         method = "POST"
         if note.ghl_id:
-            endpoint = f"/notes/{note.ghl_id}"
+            endpoint = f"/contacts/{contact_id}/notes/{note.ghl_id}"
             method = "PUT"
 
-        data = self._request(method, endpoint, cfg["api_token"], payload=payload)
-        n = data.get("note") or data
-        ghl_id = n.get("id")
-        updated_at = n.get("updatedAt")
-        if ghl_id:
-            note.with_context(ghl_sync_running=True).write(
-                {
-                    "ghl_id": ghl_id,
-                    "ghl_remote_updated_at": self._parse_remote_dt(updated_at),
-                    "ghl_last_synced_at": fields.Datetime.now(),
-                }
-            )
+        try:
+            data = self._request(method, endpoint, cfg["api_token"], payload=payload)
+            n = data.get("note") or data
+            ghl_id = n.get("id")
+            updated_at = n.get("dateAdded") # GHL returns dateAdded for notes usually
+            
+            if ghl_id:
+                note.with_context(ghl_sync_running=True).write(
+                    {
+                        "ghl_id": ghl_id,
+                        "ghl_remote_updated_at": self._parse_remote_dt(updated_at) if updated_at else fields.Datetime.now(),
+                        "ghl_last_synced_at": fields.Datetime.now(),
+                    }
+                )
+        except Exception as e:
+            _logger.error(f"Error pushing note {note.id}: {str(e)}")
 
     @api.model
     def pull_notes(self):
@@ -792,7 +826,69 @@ class OdooGHLBackend(models.AbstractModel):
             return
         if cfg["sync_direction"] not in ("ghl_to_odoo", "both"):
             return
-        # TODO: implement when GHL notes API confirmed
+            
+        Partner = self.env["res.partner"].sudo()
+        MailMessage = self.env["mail.message"].sudo()
+        
+        # Get all contacts with ghl_id
+        contacts = Partner.search([("ghl_id", "!=", False)])
+        
+        latest = None
+        
+        for contact in contacts:
+            try:
+                endpoint = f"/contacts/{contact.ghl_id}/notes"
+                data = self._request("GET", endpoint, cfg["api_token"])
+                notes = data.get("notes", [])
+                
+                for n in notes:
+                    ghl_id = n.get("id")
+                    body = n.get("body", "")
+                    date_added = n.get("dateAdded")
+                    user_id = n.get("userId")
+                    
+                    if not ghl_id:
+                        continue
+                        
+                    # Check if exists
+                    existing = MailMessage.search([("ghl_id", "=", ghl_id)], limit=1)
+                    if existing:
+                        continue # Skip updates for now, notes are usually immutable or append-only in this context
+                    
+                    # Map Author
+                    author_id = None
+                    if user_id:
+                        mapping = self.env["ghl.user.mapping"].search([("ghl_user_id", "=", user_id)], limit=1)
+                        if mapping and mapping.odoo_user_id:
+                            author_id = mapping.odoo_user_id.partner_id.id
+                            
+                    # Create Note in Odoo
+                    vals = {
+                        "model": "res.partner",
+                        "res_id": contact.id,
+                        "message_type": "comment",
+                        "subtype_id": self.env.ref("mail.mt_note").id,
+                        "body": f"<p>{body}</p>", # Wrap in p tag
+                        "ghl_id": ghl_id,
+                        "ghl_remote_updated_at": self._parse_remote_dt(date_added),
+                        "ghl_last_synced_at": fields.Datetime.now(),
+                    }
+                    if author_id:
+                        vals["author_id"] = author_id
+                        
+                    MailMessage.with_context(ghl_sync_running=True).create(vals)
+                    
+                    # Track latest for timestamp
+                    dt = self._parse_remote_dt(date_added)
+                    if dt and (latest is None or dt > latest):
+                        latest = dt
+                        
+            except Exception as e:
+                _logger.error(f"Error fetching notes for contact {contact.name}: {str(e)}")
+                continue
+
+        if latest:
+            self._save_last_pull(note=latest.isoformat())
 
     # =================================================================
     # CRONS + MANUAL SYNC BUTTON

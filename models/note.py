@@ -22,6 +22,8 @@ class MailMessage(models.Model):
             and cfg["sync_on"] == "create_update"
         ):
             for msg in messages:
+                if msg.model not in ('res.partner', 'crm.lead'):
+                    continue
                 if msg.message_type == "comment" and not msg.ghl_skip_sync:
                     backend.push_note(msg)
         return messages
@@ -48,6 +50,8 @@ class MailMessage(models.Model):
             and cfg["sync_on"] == "create_update"
         ):
             for msg in self:
+                if msg.model not in ('res.partner', 'crm.lead'):
+                    continue
                 if msg.message_type == "comment" and not msg.ghl_skip_sync:
                     backend.push_note(msg)
         return res
