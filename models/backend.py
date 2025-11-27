@@ -862,6 +862,16 @@ class OdooGHLBackend(models.AbstractModel):
                         if mapping and mapping.odoo_user_id:
                             author_id = mapping.odoo_user_id.partner_id.id
                             
+                    # Check for active opportunity
+                    opportunity = self.env["crm.lead"].search([
+                        ("partner_id", "=", contact.id),
+                        ("type", "=", "opportunity"),
+                        ("stage_id.is_won", "=", False), # Not Won
+                        ("active", "=", True), # Not Archived
+                        ("probability", "<", 100), # Not Won (double check)
+                        ("probability", ">", 0), # Not Lost (usually)
+                    ], order="write_date desc", limit=1)
+
                     # Create Note in Odoo
                     vals = {
                         "model": "res.partner",
@@ -873,6 +883,11 @@ class OdooGHLBackend(models.AbstractModel):
                         "ghl_remote_updated_at": self._parse_remote_dt(date_added),
                         "ghl_last_synced_at": fields.Datetime.now(),
                     }
+                    
+                    if opportunity:
+                        vals["model"] = "crm.lead"
+                        vals["res_id"] = opportunity.id
+                        
                     if author_id:
                         vals["author_id"] = author_id
                         
