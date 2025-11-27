@@ -156,6 +156,20 @@ class OdooGHLBackend(models.AbstractModel):
             _logger.error(f"Failed to parse datetime '{value}': {str(e)}")
             return False
 
+    def _save_last_pull(self, contact=None, opportunity=None, task=None, note=None):
+        """Save last pull timestamps to ir.config_parameter"""
+        ICP = self.env["ir.config_parameter"].sudo()
+        
+        if contact:
+            ICP.set_param("odoo_ghl.last_contact_pull", contact)
+        if opportunity:
+            ICP.set_param("odoo_ghl.last_opportunity_pull", opportunity)
+        if task:
+            ICP.set_param("odoo_ghl.last_task_pull", task)
+        if note:
+            ICP.set_param("odoo_ghl.last_note_pull", note)
+
+
     # =================================================================
     # CONTACTS – PUSH & PULL
     # =================================================================
