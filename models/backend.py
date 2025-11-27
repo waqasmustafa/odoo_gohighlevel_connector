@@ -689,6 +689,75 @@ class OdooGHLBackend(models.AbstractModel):
                 tasks = data.get("tasks", [])
                 
                 for t in tasks:
+                    ghl_id = t.get("id")
+                    if not ghl_id:
+                        continue
+
+                    updated_at = self._parse_remote_dt(t.get("updatedAt"))
+                    if latest is None or (updated_at and updated_at > latest):
+                        latest = updated_at
+
+                    task = Task.search([("ghl_id", "=", ghl_id)], limit=1)
+
+                    vals = {
+                        "name": t.get("title") or "Untitled Task",
+                        "description": t.get("body"),
+                        "partner_id": contact.id,  # Link to the contact we're fetching from
+                    }
+                    
+                    # Parse due date
+                    due_date_str = t.get("dueDate")
+                    if due_date_str:
+                        due_date = self._parse_remote_dt(due_date_str)
+                        if due_date:
+                            vals["date_deadline"] = due_date
+                        else:
+                            _logger.warning(f"Failed to parse dueDate: {due_date_str}")
+                    else:
+                        _logger.debug(f"Task {t.get('title')} has no dueDate")
+
+                    # Map assigned user
+                    ghl_assigned_to = t.get("assignedTo")
+                    if ghl_assigned_to:
+                        user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                            ("ghl_user_id", "=", ghl_assigned_to)
+                        ], limit=1)
+                        if user_mapping and user_mapping.odoo_user_id:
+                            vals["user_ids"] = [(6, 0, [user_mapping.odoo_user_id.id])]
+                        else:
+                            vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+                    else:
+                        vals["user_ids"] = [(5, 0, 0)]  # Clear all users
+
+                    # Completion status (map to folded stage)
+                    if t.get("completed"):
+                        done_stage = self.env["project.task.type"].sudo().search([
+                            ("fold", "=", True)
+                        ], limit=1)
+                        if done_stage:
+                            vals["stage_id"] = done_stage.id
+                    
+                    if task:
+                        task.with_context(ghl_sync_running=True).write(vals)
+                    else:
+                        vals.update({
+                            "ghl_id": ghl_id,
+                            "ghl_remote_updated_at": updated_at,
+                            "ghl_last_synced_at": fields.Datetime.now(),
+                        })
+                        Task.with_context(ghl_sync_running=True).create(vals)
+            except Exception as e:
+                _logger.error(f"Error fetching tasks for contact {contact.name}: {str(e)}")
+                continue
+
+        if latest:
+            self._save_last_pull(task=latest.isoformat())
+
+    @api.model
+    def push_note(self, note):
+        cfg = self._get_config()
+        if not cfg["sync_notes"] or note.ghl_skip_sync:
+            return
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
 
