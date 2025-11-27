@@ -82,10 +82,22 @@
                     <setting string="Last Sync Timestamps"
                              help="Read-only info about last pull times.">
                         <div class="row">
-                            <field name="ghl_last_contact_pull" class="col-3" readonly="1"/>
-                            <field name="ghl_last_opportunity_pull" class="col-3" readonly="1"/>
-                            <field name="ghl_last_task_pull" class="col-3" readonly="1"/>
-                            <field name="ghl_last_note_pull" class="col-3" readonly="1"/>
+                            <div class="col-3">
+                                <label for="ghl_last_contact_pull" string="Contacts"/>
+                                <field name="ghl_last_contact_pull" readonly="1" nolabel="1"/>
+                            </div>
+                            <div class="col-3">
+                                <label for="ghl_last_opportunity_pull" string="Opportunities"/>
+                                <field name="ghl_last_opportunity_pull" readonly="1" nolabel="1"/>
+                            </div>
+                            <div class="col-3">
+                                <label for="ghl_last_task_pull" string="Tasks"/>
+                                <field name="ghl_last_task_pull" readonly="1" nolabel="1"/>
+                            </div>
+                            <div class="col-3">
+                                <label for="ghl_last_note_pull" string="Notes"/>
+                                <field name="ghl_last_note_pull" readonly="1" nolabel="1"/>
+                            </div>
                         </div>
                     </setting>
 
