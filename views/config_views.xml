@@ -205,14 +205,208 @@
         <field name="view_mode">list,form</field>
     </record>
 
+                    <setting string="API Configuration"
+                             help="Configure GoHighLevel API token and location.">
+                        <div class="row">
+                            <field name="ghl_api_token"
+                                   password="True"
+                                   placeholder="PIT token from GoHighLevel"
+                                   class="col-6"/>
+                            <field name="ghl_location_id"
+                                   placeholder="Location ID (sub-account)"
+                                   class="col-6"/>
+                        </div>
+                        <div class="row mt16">
+                            <div class="col-12">
+                                <button name="action_ghl_test_connection"
+                                        string="Test Connection"
+                                        type="object"
+                                        icon="fa-plug"
+                                        class="btn btn-secondary"/>
+                            </div>
+                        </div>
+                    </setting>
+
+                    <setting string="Sync Behavior"
+                             help="Configure sync direction and when to send updates.">
+                        <div class="row">
+                            <field name="ghl_sync_direction"
+                                   class="col-6"/>
+                            <field name="ghl_sync_on"
+                                   class="col-6"/>
+                        </div>
+                    </setting>
+
+                    <setting string="What To Sync"
+                             help="Enable or disable different record types.">
+                        <!-- Row 1: Contacts and Opportunities -->
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <field name="ghl_sync_contacts"/>
+                                <label for="ghl_sync_contacts" string="Contacts"/>
+                            </div>
+                            <div class="col-6">
+                                <field name="ghl_sync_opportunities"/>
+                                <label for="ghl_sync_opportunities" string="Opportunities"/>
+                            </div>
+                        </div>
+                        <!-- Row 2: Tasks and Notes -->
+                        <div class="row">
+                            <div class="col-6">
+                                <field name="ghl_sync_tasks"/>
+                                <label for="ghl_sync_tasks" string="Tasks"/>
+                            </div>
+                            <div class="col-6">
+                                <field name="ghl_sync_notes"/>
+                                <label for="ghl_sync_notes" string="Notes"/>
+                            </div>
+                        </div>
+                    </setting>
+
+                    <setting string="Polling Interval"
+                             help="How often Odoo should poll GoHighLevel for updates (GHL → Odoo).">
+                        <div class="row">
+                            <field name="ghl_poll_interval_minutes"
+                                   class="col-4"
+                                   placeholder="10"/>
+                            <span class="col-8 o_form_label">Minutes between polls (cron).</span>
+                        </div>
+                    </setting>
+
+                    <setting string="Last Sync Timestamps"
+                             help="Read-only info about last pull times.">
+                        <!-- Row 1: Contacts and Opportunities -->
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label for="ghl_last_contact_pull" string="Contacts" class="fw-bold d-block"/>
+                                <field name="ghl_last_contact_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                            </div>
+                            <div class="col-6">
+                                <label for="ghl_last_opportunity_pull" string="Opportunities" class="fw-bold d-block"/>
+                                <field name="ghl_last_opportunity_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                            </div>
+                        </div>
+                        <!-- Row 2: Tasks and Notes -->
+                        <!-- <div class="row">
+                            <div class="col-6">
+                                <label for="ghl_last_task_pull" string="Tasks" class="fw-bold d-block"/>
+                                <field name="ghl_last_task_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                            </div>
+                            <div class="col-6">
+                                <label for="ghl_last_note_pull" string="Notes" class="fw-bold d-block"/>
+                                <field name="ghl_last_note_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                            </div>
+                        </div> -->
+                    </setting>
+
+                    <setting string="Manual Sync Now"
+                             help="Click 'Save' first, then use this button to pull changes immediately.">
+                        <!-- Row 1: Sync Now button -->
+                        <div class="row mb-2">
+                            <div class="col-12">
+                                <button name="action_ghl_manual_sync"
+                                        string="Sync Now"
+                                        type="object"
+                                        class="btn btn-primary"/>
+                            </div>
+                        </div>
+                        <!-- Row 2: Fetch buttons -->
+                        <div class="row">
+                            <div class="col-6">
+                                <button name="action_fetch_pipelines"
+                                        string="Fetch Pipelines"
+                                        type="object"
+                                        class="btn btn-secondary"/>
+                            </div>
+                            <div class="col-6">
+                                <button name="action_fetch_users"
+                                        string="Fetch Users"
+                                        type="object"
+                                        class="btn btn-secondary"/>
+                            </div>
+                        </div>
+                    </setting>
+
+                </block>
+
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Action for Settings -->
+    <record id="action_ghl_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'odoo_gohighlevel_connector'}</field>
+    </record>
+
+    <!-- Mappings Menus -->
+    <record id="view_ghl_user_mapping_list" model="ir.ui.view">
+        <field name="name">ghl.user.mapping.list</field>
+        <field name="model">ghl.user.mapping</field>
+        <field name="arch" type="xml">
+            <list string="User Mapping">
+                <field name="odoo_user_id"/>
+                <field name="ghl_user_name"/>
+                <field name="ghl_user_email"/>
+                <field name="ghl_user_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_ghl_user_mapping" model="ir.actions.act_window">
+        <field name="name">User Mapping</field>
+        <field name="res_model">ghl.user.mapping</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_ghl_pipeline_mapping_tree" model="ir.ui.view">
+        <field name="name">ghl.pipeline.mapping.list</field>
+        <field name="model">ghl.pipeline.mapping</field>
+        <field name="arch" type="xml">
+            <list string="Pipeline Mapping">
+                <field name="odoo_stage_id"/>
+                <field name="ghl_pipeline_name"/>
+                <field name="ghl_stage_name"/>
+                <field name="ghl_pipeline_id" optional="hide"/>
+                <field name="ghl_stage_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_ghl_fetch_pipelines_server" model="ir.actions.server">
+        <field name="name">Fetch from GHL</field>
+        <field name="model_id" ref="model_ghl_pipeline_mapping"/>
+        <field name="binding_model_id" ref="model_ghl_pipeline_mapping"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">action = model.fetch_pipelines_from_ghl()</field>
+    </record>
+
+
+    <record id="action_ghl_pipeline_mapping" model="ir.actions.act_window">
+        <field name="name">Pipeline Mapping</field>
+        <field name="res_model">ghl.pipeline.mapping</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_ghl_sync_queue" model="ir.actions.act_window">
+        <field name="name">Sync Retry Queue</field>
+        <field name="res_model">ghl.sync.queue</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png" action="action_ghl_config_settings"/>
     
     <!-- Main Menus -->
     <!-- <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/> -->
     
     <!-- Configuration -->
+    <menuitem id="menu_ghl_settings" name="Settings" parent="menu_ghl_root" action="action_ghl_config_settings" sequence="1"/>
     <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root" sequence="100"/>
-    <menuitem id="menu_ghl_settings" name="Settings" parent="menu_ghl_config" action="action_ghl_config_settings"/>
     <menuitem id="menu_ghl_user_mapping" name="User Mapping" parent="menu_ghl_config" action="action_ghl_user_mapping"/>
     <menuitem id="menu_ghl_pipeline_mapping" name="Pipeline Mapping" parent="menu_ghl_config" action="action_ghl_pipeline_mapping"/>
 
