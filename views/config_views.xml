@@ -205,16 +205,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <record id="action_ghl_config_settings" model="ir.actions.act_window">
-        <field name="name">GoHighLevel Settings</field>
-        <field name="res_model">res.config.settings</field>
-        <field name="view_mode">form</field>
-        <field name="target">inline</field>
-        <field name="context">{'module': 'odoo_gohighlevel_connector'}</field>
-    </record>
-
-
-    <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png" action="action_ghl_config_settings"/>
+    <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png"/>
     
     <!-- Main Menus -->
     <!-- <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/> -->
