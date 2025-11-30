@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
+    <!-- =========================================================
+         1. Inherit General Settings – GoHighLevel Sync Block
+         ========================================================= -->
     <record id="res_config_settings_view_form_ghl" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.ghl</field>
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
 
-            <!-- Use the same anchor that you know is working -->
+            <!-- Insert our block before User Defaults -->
             <xpath expr="//block[@id='user_default_rights']" position="before">
 
                 <block title="GoHighLevel Sync" id="ghl_sync_block">
 
+                    <!-- API CONFIGURATION -->
                     <setting string="API Configuration"
                              help="Configure GoHighLevel API token and location.">
                         <div class="row">
@@ -33,6 +38,7 @@
                         </div>
                     </setting>
 
+                    <!-- SYNC BEHAVIOR -->
                     <setting string="Sync Behavior"
                              help="Configure sync direction and when to send updates.">
                         <div class="row">
@@ -43,6 +49,7 @@
                         </div>
                     </setting>
 
+                    <!-- WHAT TO SYNC -->
                     <setting string="What To Sync"
                              help="Enable or disable different record types.">
                         <!-- Row 1: Contacts and Opportunities -->
@@ -69,6 +76,7 @@
                         </div>
                     </setting>
 
+                    <!-- POLLING INTERVAL -->
                     <setting string="Polling Interval"
                              help="How often Odoo should poll GoHighLevel for updates (GHL → Odoo).">
                         <div class="row">
@@ -79,32 +87,43 @@
                         </div>
                     </setting>
 
+                    <!-- LAST SYNC TIMESTAMPS -->
                     <setting string="Last Sync Timestamps"
                              help="Read-only info about last pull times.">
                         <!-- Row 1: Contacts and Opportunities -->
                         <div class="row mb-2">
                             <div class="col-6">
                                 <label for="ghl_last_contact_pull" string="Contacts" class="fw-bold d-block"/>
-                                <field name="ghl_last_contact_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                                <field name="ghl_last_contact_pull"
+                                       readonly="1"
+                                       nolabel="1"
+                                       style="width: 100%; white-space: nowrap;"/>
                             </div>
                             <div class="col-6">
                                 <label for="ghl_last_opportunity_pull" string="Opportunities" class="fw-bold d-block"/>
-                                <field name="ghl_last_opportunity_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                                <field name="ghl_last_opportunity_pull"
+                                       readonly="1"
+                                       nolabel="1"
+                                       style="width: 100%; white-space: nowrap;"/>
                             </div>
                         </div>
-                        <!-- Row 2: Tasks and Notes -->
-                        <!-- <div class="row">
+                        <!-- If you later track Tasks/Notes timestamps, you can re-enable this part
+                        <div class="row">
                             <div class="col-6">
                                 <label for="ghl_last_task_pull" string="Tasks" class="fw-bold d-block"/>
-                                <field name="ghl_last_task_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                                <field name="ghl_last_task_pull" readonly="1" nolabel="1"
+                                       style="width: 100%; white-space: nowrap;"/>
                             </div>
                             <div class="col-6">
                                 <label for="ghl_last_note_pull" string="Notes" class="fw-bold d-block"/>
-                                <field name="ghl_last_note_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
+                                <field name="ghl_last_note_pull" readonly="1" nolabel="1"
+                                       style="width: 100%; white-space: nowrap;"/>
                             </div>
-                        </div> -->
+                        </div>
+                        -->
                     </setting>
 
+                    <!-- MANUAL SYNC -->
                     <setting string="Manual Sync Now"
                              help="Click 'Save' first, then use this button to pull changes immediately.">
                         <!-- Row 1: Sync Now button -->
@@ -139,17 +158,23 @@
         </field>
     </record>
 
-    <!-- Action for Settings -->
-    <record id="action_ghl_config_settings" model="ir.actions.act_window">
-        <field name="name">Settings</field>
-        <field name="type">ir.actions.act_window</field>
-        <field name="res_model">res.config.settings</field>
-        <field name="view_mode">form</field>
-        <field name="target">inline</field>
-        <field name="context">{'module' : 'odoo_gohighlevel_connector'}</field>
+    <!-- =========================================================
+         2. Client Action – Open Global Settings on app click
+         ========================================================= -->
+    <record id="action_ghl_open_settings" model="ir.actions.client">
+        <field name="name">GoHighLevel Settings</field>
+        <field name="tag">action_open_settings</field>
+        <field name="params">
+            {
+                "res_model": "res.config.settings",
+                "module": "odoo_gohighlevel_connector"
+            }
+        </field>
     </record>
 
-    <!-- Mappings Menus -->
+    <!-- =========================================================
+         3. User Mapping Views & Action
+         ========================================================= -->
     <record id="view_ghl_user_mapping_list" model="ir.ui.view">
         <field name="name">ghl.user.mapping.list</field>
         <field name="model">ghl.user.mapping</field>
@@ -169,7 +194,10 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <record id="view_ghl_pipeline_mapping_tree" model="ir.ui.view">
+    <!-- =========================================================
+         4. Pipeline Mapping Views, Actions & Server Action
+         ========================================================= -->
+    <record id="view_ghl_pipeline_mapping_list" model="ir.ui.view">
         <field name="name">ghl.pipeline.mapping.list</field>
         <field name="model">ghl.pipeline.mapping</field>
         <field name="arch" type="xml">
@@ -183,6 +211,13 @@
         </field>
     </record>
 
+    <record id="action_ghl_pipeline_mapping" model="ir.actions.act_window">
+        <field name="name">Pipeline Mapping</field>
+        <field name="res_model">ghl.pipeline.mapping</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Contextual server action to fetch pipelines from GHL -->
     <record id="action_ghl_fetch_pipelines_server" model="ir.actions.server">
         <field name="name">Fetch from GHL</field>
         <field name="model_id" ref="model_ghl_pipeline_mapping"/>
@@ -192,28 +227,53 @@
         <field name="code">action = model.fetch_pipelines_from_ghl()</field>
     </record>
 
-
-    <record id="action_ghl_pipeline_mapping" model="ir.actions.act_window">
-        <field name="name">Pipeline Mapping</field>
-        <field name="res_model">ghl.pipeline.mapping</field>
-        <field name="view_mode">list,form</field>
-    </record>
-
+    <!-- =========================================================
+         5. Sync Queue Action (if you use retry queue model)
+         ========================================================= -->
     <record id="action_ghl_sync_queue" model="ir.actions.act_window">
         <field name="name">Sync Retry Queue</field>
         <field name="res_model">ghl.sync.queue</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png"/>
-    
-    <!-- Main Menus -->
-    <!-- <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/> -->
-    
-    <!-- Configuration -->
-    <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root" sequence="100"/>
-    <menuitem id="menu_ghl_settings" name="Settings" parent="menu_ghl_config" action="action_ghl_config_settings"/>
-    <menuitem id="menu_ghl_user_mapping" name="User Mapping" parent="menu_ghl_config" action="action_ghl_user_mapping"/>
-    <menuitem id="menu_ghl_pipeline_mapping" name="Pipeline Mapping" parent="menu_ghl_config" action="action_ghl_pipeline_mapping"/>
+    <!-- =========================================================
+         6. Menus
+         ========================================================= -->
+
+    <!-- Root menu / App icon – opens Settings -->
+    <menuitem id="menu_ghl_root"
+              name="GoHighLevel"
+              web_icon="odoo_gohighlevel_connector,static/description/icon.png"
+              action="action_ghl_open_settings"/>
+
+    <!-- Configuration submenu -->
+    <menuitem id="menu_ghl_config"
+              name="Configuration"
+              parent="menu_ghl_root"
+              sequence="100"/>
+
+    <!-- Submenus -->
+    <!-- We no longer need a 'Settings' submenu because clicking the app icon already
+         opens the Settings page for this module. If you still want it, you can add:
+         <menuitem id="menu_ghl_settings" name="Settings"
+                   parent="menu_ghl_config" action="action_ghl_open_settings"/>
+    -->
+    <menuitem id="menu_ghl_user_mapping"
+              name="User Mapping"
+              parent="menu_ghl_config"
+              action="action_ghl_user_mapping"/>
+
+    <menuitem id="menu_ghl_pipeline_mapping"
+              name="Pipeline Mapping"
+              parent="menu_ghl_config"
+              action="action_ghl_pipeline_mapping"/>
+
+    <!-- Optional: show Sync Queue under Configuration or another submenu
+    <menuitem id="menu_ghl_sync_queue"
+              name="Sync Retry Queue"
+              parent="menu_ghl_config"
+              action="action_ghl_sync_queue"
+              sequence="50"/>
+    -->
 
 </odoo>
