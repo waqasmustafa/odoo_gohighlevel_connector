@@ -208,7 +208,7 @@
     <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png"/>
     
     <!-- Main Menus -->
-    <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/>
+    <!-- <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/> -->
     
     <!-- Configuration -->
     <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root" sequence="100"/>
