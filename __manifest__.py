@@ -1,7 +1,7 @@
 # odoo_gohighlevel_connector/__manifest__.py
 {
     "name": "Odoo – GoHighLevel Connector",
-    "summary": "Bi-directional sync between Odoo 18 and GoHighLevel (Contacts, Deals, Tasks, Notes)",
+    "summary": "Bi-directionals sync between Odoo 18 and GoHighLevel (Contacts, Deals, Tasks, Notes)",
     "version": "18.0.1.0.0",
     "author": "Waqas Mustafa",
     "website": "https://www.linkedin.com/in/waqas-mustafa-ba5701209/",
