@@ -93,7 +93,7 @@
                             </div>
                         </div>
                         <!-- Row 2: Tasks and Notes -->
-                        <!-- <div class="row">
+                        <div class="row">
                             <div class="col-6">
                                 <label for="ghl_last_task_pull" string="Tasks" class="fw-bold d-block"/>
                                 <field name="ghl_last_task_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
@@ -102,7 +102,7 @@
                                 <label for="ghl_last_note_pull" string="Notes" class="fw-bold d-block"/>
                                 <field name="ghl_last_note_pull" readonly="1" nolabel="1" style="width: 100%; white-space: nowrap;"/>
                             </div>
-                        </div> -->
+                        </div>
                     </setting>
 
                     <setting string="Manual Sync Now"
@@ -208,7 +208,7 @@
     <menuitem id="menu_ghl_root" name="GoHighLevel" web_icon="odoo_gohighlevel_connector,static/description/icon.png"/>
     
     <!-- Main Menus -->
-    <!-- <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/> -->
+    <menuitem id="menu_ghl_sync_queue" name="Sync Queue" parent="menu_ghl_root" action="action_ghl_sync_queue" sequence="10"/>
     
     <!-- Configuration -->
     <menuitem id="menu_ghl_config" name="Configuration" parent="menu_ghl_root" sequence="100"/>
