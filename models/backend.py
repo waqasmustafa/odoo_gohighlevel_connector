@@ -315,11 +315,27 @@ class OdooGHLBackend(models.AbstractModel):
             cfg["last_contact_pull"]
         )
 
-        # Pagination loop
+        # Pagination loop with safety checks
         start_after = None
+        previous_cursor = None
         total_fetched = 0
+        seen_ids = set()  # Track IDs to detect duplicates
+        max_iterations = 1000  # Safety limit
+        iteration = 0
         
         while True:
+            iteration += 1
+            
+            # Safety check: prevent infinite loops
+            if iteration > max_iterations:
+                _logger.warning(f"Reached maximum iterations ({max_iterations}), stopping contact sync.")
+                break
+            
+            # Safety check: detect same cursor (API bug)
+            if start_after and start_after == previous_cursor:
+                _logger.warning(f"API returned same cursor twice ({start_after}), stopping to prevent infinite loop.")
+                break
+            
             params = {
                 "locationId": cfg["location_id"],
                 "limit": limit,
@@ -329,7 +345,7 @@ class OdooGHLBackend(models.AbstractModel):
             if start_after:
                 params["startAfter"] = start_after
             
-            _logger.info(f"Fetching contacts page (startAfter={start_after})...")
+            _logger.info(f"Fetching contacts page {iteration} (startAfter={start_after})...")
             data = self._request("GET", "/contacts/", cfg["api_token"], params=params)
             contacts = data.get("contacts") or data.get("items") or []
             
@@ -337,13 +353,22 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.info(f"No more contacts to fetch. Total fetched: {total_fetched}")
                 break
             
-            total_fetched += len(contacts)
-            _logger.info(f"Processing {len(contacts)} contacts (total so far: {total_fetched})...")
-
+            # Safety check: detect if we're getting duplicate contacts
+            new_contacts = 0
+            duplicate_contacts = 0
+            
             for c in contacts:
                 ghl_id = c.get("id")
                 if not ghl_id:
                     continue
+                
+                # Check if we've already seen this contact
+                if ghl_id in seen_ids:
+                    duplicate_contacts += 1
+                    continue
+                
+                seen_ids.add(ghl_id)
+                new_contacts += 1
 
                 updated_at = self._parse_remote_dt(
                     c.get("dateUpdated") or c.get("updatedAt")
@@ -425,12 +450,21 @@ class OdooGHLBackend(models.AbstractModel):
                     )
                     Partner.with_context(ghl_sync_running=True).create(vals)
 
+            total_fetched += new_contacts
+            _logger.info(f"Page {iteration}: {new_contacts} new, {duplicate_contacts} duplicates (total unique: {total_fetched})")
+            
+            # Safety check: if all contacts were duplicates, stop
+            if new_contacts == 0 and duplicate_contacts > 0:
+                _logger.warning(f"All contacts on this page were duplicates, stopping to prevent infinite loop.")
+                break
+
             # Check for next page
             meta = data.get("meta", {})
+            previous_cursor = start_after
             start_after = meta.get("startAfter") or meta.get("startAfterId")
             
             if not start_after:
-                _logger.info(f"No more pages. Total contacts fetched: {total_fetched}")
+                _logger.info(f"No more pages. Total unique contacts fetched: {total_fetched}")
                 break
 
         if latest:
@@ -525,11 +559,27 @@ class OdooGHLBackend(models.AbstractModel):
             cfg["last_opportunity_pull"]
         )
 
-        # Pagination loop
+        # Pagination loop with safety checks
         start_after = None
+        previous_cursor = None
         total_fetched = 0
+        seen_ids = set()  # Track IDs to detect duplicates
+        max_iterations = 1000  # Safety limit
+        iteration = 0
         
         while True:
+            iteration += 1
+            
+            # Safety check: prevent infinite loops
+            if iteration > max_iterations:
+                _logger.warning(f"Reached maximum iterations ({max_iterations}), stopping opportunity sync.")
+                break
+            
+            # Safety check: detect same cursor (API bug)
+            if start_after and start_after == previous_cursor:
+                _logger.warning(f"API returned same cursor twice ({start_after}), stopping to prevent infinite loop.")
+                break
+            
             params = {
                 "location_id": cfg["location_id"],
                 "limit": limit,
@@ -539,7 +589,7 @@ class OdooGHLBackend(models.AbstractModel):
             if start_after:
                 params["startAfter"] = start_after
             
-            _logger.info(f"Fetching opportunities page (startAfter={start_after})...")
+            _logger.info(f"Fetching opportunities page {iteration} (startAfter={start_after})...")
             # Use /opportunities/search to list opportunities
             data = self._request("GET", "/opportunities/search", cfg["api_token"], params=params)
             opportunities = data.get("opportunities") or data.get("items") or []
@@ -548,13 +598,22 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.info(f"No more opportunities to fetch. Total fetched: {total_fetched}")
                 break
             
-            total_fetched += len(opportunities)
-            _logger.info(f"Processing {len(opportunities)} opportunities (total so far: {total_fetched})...")
+            # Safety check: detect if we're getting duplicate opportunities
+            new_opportunities = 0
+            duplicate_opportunities = 0
 
             for o in opportunities:
                 ghl_id = o.get("id")
                 if not ghl_id:
                     continue
+                
+                # Check if we've already seen this opportunity
+                if ghl_id in seen_ids:
+                    duplicate_opportunities += 1
+                    continue
+                
+                seen_ids.add(ghl_id)
+                new_opportunities += 1
 
                 updated_at = self._parse_remote_dt(o.get("updatedAt"))
                 
@@ -618,12 +677,21 @@ class OdooGHLBackend(models.AbstractModel):
                     )
                     Lead.with_context(ghl_sync_running=True).create(vals)
 
+            total_fetched += new_opportunities
+            _logger.info(f"Page {iteration}: {new_opportunities} new, {duplicate_opportunities} duplicates (total unique: {total_fetched})")
+            
+            # Safety check: if all opportunities were duplicates, stop
+            if new_opportunities == 0 and duplicate_opportunities > 0:
+                _logger.warning(f"All opportunities on this page were duplicates, stopping to prevent infinite loop.")
+                break
+
             # Check for next page
             meta = data.get("meta", {})
+            previous_cursor = start_after
             start_after = meta.get("startAfter") or meta.get("startAfterId")
             
             if not start_after:
-                _logger.info(f"No more pages. Total opportunities fetched: {total_fetched}")
+                _logger.info(f"No more pages. Total unique opportunities fetched: {total_fetched}")
                 break
 
         if latest:
