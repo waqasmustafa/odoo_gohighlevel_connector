@@ -310,106 +310,128 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("ghl_to_odoo", "both"):
             return
 
-        params = {
-            "locationId": cfg["location_id"],
-            "limit": limit,
-        }
-        
-        # Note: GHL Contacts API doesn't support updatedAt filtering
-        # We'll fetch all and filter in Odoo based on updatedAt field
-
         Partner = self.env["res.partner"].sudo()
         latest = cfg["last_contact_pull"] and self._parse_remote_dt(
             cfg["last_contact_pull"]
         )
 
-        data = self._request("GET", "/contacts/", cfg["api_token"], params=params)
-        contacts = data.get("contacts") or data.get("items") or []
-
-        for c in contacts:
-            ghl_id = c.get("id")
-            if not ghl_id:
-                continue
-
-            updated_at = self._parse_remote_dt(
-                c.get("dateUpdated") or c.get("updatedAt")
-            )
-            
-            # Skip if not updated since last pull (client-side filtering)
-            if latest and updated_at and updated_at <= latest:
-                continue
-            
-            if latest is None or (updated_at and updated_at > latest):
-                latest = updated_at
-
-            partner = Partner.search([("ghl_id", "=", ghl_id)], limit=1)
-
-            vals = {
-                "name": c.get("contactName")
-                or c.get("firstName")
-                or c.get("fullNameLowerCase")
-                or "Unknown",
-                "email": c.get("email"),
-                "phone": c.get("phone"),
-                "street": c.get("address1"),
-                "city": c.get("city"),
-                "zip": c.get("postalCode"),
+        # Pagination loop
+        start_after = None
+        total_fetched = 0
+        
+        while True:
+            params = {
+                "locationId": cfg["location_id"],
+                "limit": limit,
             }
+            
+            # Add pagination cursor if we have one
+            if start_after:
+                params["startAfter"] = start_after
+            
+            _logger.info(f"Fetching contacts page (startAfter={start_after})...")
+            data = self._request("GET", "/contacts/", cfg["api_token"], params=params)
+            contacts = data.get("contacts") or data.get("items") or []
+            
+            if not contacts:
+                _logger.info(f"No more contacts to fetch. Total fetched: {total_fetched}")
+                break
+            
+            total_fetched += len(contacts)
+            _logger.info(f"Processing {len(contacts)} contacts (total so far: {total_fetched})...")
 
-            # Country
-            country_code = c.get("country")
-            if country_code:
-                country = self.env["res.country"].sudo().search(
-                    [("code", "=", country_code)], limit=1
+            for c in contacts:
+                ghl_id = c.get("id")
+                if not ghl_id:
+                    continue
+
+                updated_at = self._parse_remote_dt(
+                    c.get("dateUpdated") or c.get("updatedAt")
                 )
-                if country:
-                    vals["country_id"] = country.id
+                
+                # Skip if not updated since last pull (client-side filtering)
+                if latest and updated_at and updated_at <= latest:
+                    continue
+                
+                if latest is None or (updated_at and updated_at > latest):
+                    latest = updated_at
 
-            # Tags
-            ghl_tags = c.get("tags") or []
-            if ghl_tags:
-                tag_ids = []
-                for tag_name in ghl_tags:
-                    tag = self.env["res.partner.category"].sudo().search([("name", "=", tag_name)], limit=1)
-                    if not tag:
-                        tag = self.env["res.partner.category"].sudo().create({"name": tag_name})
-                    tag_ids.append(tag.id)
-                vals["category_id"] = [(6, 0, tag_ids)]
+                partner = Partner.search([("ghl_id", "=", ghl_id)], limit=1)
 
-            # Company (Try to link to existing company by name)
-            ghl_company = c.get("companyName")
-            if ghl_company:
-                company_partner = self.env["res.partner"].sudo().search(
-                    [("name", "=", ghl_company), ("is_company", "=", True)], limit=1
-                )
-                if company_partner:
-                    vals["parent_id"] = company_partner.id
-                # Optional: Create company if not found? For now, we only link if exists to avoid duplicates.
+                vals = {
+                    "name": c.get("contactName")
+                    or c.get("firstName")
+                    or c.get("fullNameLowerCase")
+                    or "Unknown",
+                    "email": c.get("email"),
+                    "phone": c.get("phone"),
+                    "street": c.get("address1"),
+                    "city": c.get("city"),
+                    "zip": c.get("postalCode"),
+                }
 
-            # Map GHL assigned user to Odoo user
-            ghl_assigned_to = c.get("assignedTo")
-            if ghl_assigned_to:
-                user_mapping = self.env["ghl.user.mapping"].sudo().search([
-                    ("ghl_user_id", "=", ghl_assigned_to)
-                ], limit=1)
-                if user_mapping and user_mapping.odoo_user_id:
-                    vals["user_id"] = user_mapping.odoo_user_id.id
+                # Country
+                country_code = c.get("country")
+                if country_code:
+                    country = self.env["res.country"].sudo().search(
+                        [("code", "=", country_code)], limit=1
+                    )
+                    if country:
+                        vals["country_id"] = country.id
+
+                # Tags
+                ghl_tags = c.get("tags") or []
+                if ghl_tags:
+                    tag_ids = []
+                    for tag_name in ghl_tags:
+                        tag = self.env["res.partner.category"].sudo().search([("name", "=", tag_name)], limit=1)
+                        if not tag:
+                            tag = self.env["res.partner.category"].sudo().create({"name": tag_name})
+                        tag_ids.append(tag.id)
+                    vals["category_id"] = [(6, 0, tag_ids)]
+
+                # Company (Try to link to existing company by name)
+                ghl_company = c.get("companyName")
+                if ghl_company:
+                    company_partner = self.env["res.partner"].sudo().search(
+                        [("name", "=", ghl_company), ("is_company", "=", True)], limit=1
+                    )
+                    if company_partner:
+                        vals["parent_id"] = company_partner.id
+                    # Optional: Create company if not found? For now, we only link if exists to avoid duplicates.
+
+                # Map GHL assigned user to Odoo user
+                ghl_assigned_to = c.get("assignedTo")
+                if ghl_assigned_to:
+                    user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                        ("ghl_user_id", "=", ghl_assigned_to)
+                    ], limit=1)
+                    if user_mapping and user_mapping.odoo_user_id:
+                        vals["user_id"] = user_mapping.odoo_user_id.id
+                    else:
+                        vals["user_id"] = False  # User not mapped, unassign
                 else:
-                    vals["user_id"] = False  # User not mapped, unassign
-            else:
-                vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
+                    vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
 
-            if partner:
-                partner.with_context(ghl_sync_running=True).write(vals)
-            else:
-                vals.update(
-                    {
-                        "ghl_id": ghl_id,
-                        "ghl_remote_updated_at": updated_at,
-                        "ghl_last_synced_at": fields.Datetime.now(),
-                    }
-                )
-                Partner.with_context(ghl_sync_running=True).create(vals)
+                if partner:
+                    partner.with_context(ghl_sync_running=True).write(vals)
+                else:
+                    vals.update(
+                        {
+                            "ghl_id": ghl_id,
+                            "ghl_remote_updated_at": updated_at,
+                            "ghl_last_synced_at": fields.Datetime.now(),
+                        }
+                    )
+                    Partner.with_context(ghl_sync_running=True).create(vals)
+
+            # Check for next page
+            meta = data.get("meta", {})
+            start_after = meta.get("startAfter") or meta.get("startAfterId")
+            
+            if not start_after:
+                _logger.info(f"No more pages. Total contacts fetched: {total_fetched}")
+                break
 
         if latest:
             self._save_last_pull(contact=latest.isoformat())
@@ -498,88 +520,111 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("ghl_to_odoo", "both"):
             return
 
-        params = {
-            "location_id": cfg["location_id"],
-            "limit": limit,
-        }
-        # Note: GHL Opportunities API doesn't support updatedAt filtering
-        # We'll fetch all and filter in Odoo based on updatedAt field
-
         Lead = self.env["crm.lead"].sudo()
         latest = cfg["last_opportunity_pull"] and self._parse_remote_dt(
             cfg["last_opportunity_pull"]
         )
 
-        # Use /opportunities/search to list opportunities
-        data = self._request("GET", "/opportunities/search", cfg["api_token"], params=params)
-        opportunities = data.get("opportunities") or data.get("items") or []
-
-        for o in opportunities:
-            ghl_id = o.get("id")
-            if not ghl_id:
-                continue
-
-            updated_at = self._parse_remote_dt(o.get("updatedAt"))
-            
-            # Skip if not updated since last pull (client-side filtering)
-            if latest and updated_at and updated_at <= latest:
-                continue
-            
-            if latest is None or (updated_at and updated_at > latest):
-                latest = updated_at
-
-            lead = Lead.search([("ghl_id", "=", ghl_id)], limit=1)
-
-            vals = {
-                "name": o.get("name"),
-                "expected_revenue": o.get("monetaryValue") or 0.0,
-                "type": "opportunity",
-                "active": o.get("status") != "closed",
+        # Pagination loop
+        start_after = None
+        total_fetched = 0
+        
+        while True:
+            params = {
+                "location_id": cfg["location_id"],
+                "limit": limit,
             }
+            
+            # Add pagination cursor if we have one
+            if start_after:
+                params["startAfter"] = start_after
+            
+            _logger.info(f"Fetching opportunities page (startAfter={start_after})...")
+            # Use /opportunities/search to list opportunities
+            data = self._request("GET", "/opportunities/search", cfg["api_token"], params=params)
+            opportunities = data.get("opportunities") or data.get("items") or []
+            
+            if not opportunities:
+                _logger.info(f"No more opportunities to fetch. Total fetched: {total_fetched}")
+                break
+            
+            total_fetched += len(opportunities)
+            _logger.info(f"Processing {len(opportunities)} opportunities (total so far: {total_fetched})...")
 
-            contact_id = o.get("contactId")
-            if contact_id:
-                partner = self.env["res.partner"].sudo().search(
-                    [("ghl_id", "=", contact_id)], limit=1
-                )
-                if partner:
-                    vals["partner_id"] = partner.id
+            for o in opportunities:
+                ghl_id = o.get("id")
+                if not ghl_id:
+                    continue
 
-            # Map GHL stage to Odoo stage
-            ghl_pipeline_id = o.get("pipelineId")
-            ghl_stage_id = o.get("pipelineStageId")
-            if ghl_pipeline_id and ghl_stage_id:
-                stage_mapping = self.env["ghl.pipeline.mapping"].sudo().search([
-                    ("ghl_pipeline_id", "=", ghl_pipeline_id),
-                    ("ghl_stage_id", "=", ghl_stage_id)
-                ], limit=1)
-                if stage_mapping and stage_mapping.odoo_stage_id:
-                    vals["stage_id"] = stage_mapping.odoo_stage_id.id
+                updated_at = self._parse_remote_dt(o.get("updatedAt"))
+                
+                # Skip if not updated since last pull (client-side filtering)
+                if latest and updated_at and updated_at <= latest:
+                    continue
+                
+                if latest is None or (updated_at and updated_at > latest):
+                    latest = updated_at
 
-            # Map GHL assigned user to Odoo user
-            ghl_assigned_to = o.get("assignedTo")
-            if ghl_assigned_to:
-                user_mapping = self.env["ghl.user.mapping"].sudo().search([
-                    ("ghl_user_id", "=", ghl_assigned_to)
-                ], limit=1)
-                if user_mapping and user_mapping.odoo_user_id:
-                    vals["user_id"] = user_mapping.odoo_user_id.id
+                lead = Lead.search([("ghl_id", "=", ghl_id)], limit=1)
+
+                vals = {
+                    "name": o.get("name"),
+                    "expected_revenue": o.get("monetaryValue") or 0.0,
+                    "type": "opportunity",
+                    "active": o.get("status") != "closed",
+                }
+
+                contact_id = o.get("contactId")
+                if contact_id:
+                    partner = self.env["res.partner"].sudo().search(
+                        [("ghl_id", "=", contact_id)], limit=1
+                    )
+                    if partner:
+                        vals["partner_id"] = partner.id
+
+                # Map GHL stage to Odoo stage
+                ghl_pipeline_id = o.get("pipelineId")
+                ghl_stage_id = o.get("pipelineStageId")
+                if ghl_pipeline_id and ghl_stage_id:
+                    stage_mapping = self.env["ghl.pipeline.mapping"].sudo().search([
+                        ("ghl_pipeline_id", "=", ghl_pipeline_id),
+                        ("ghl_stage_id", "=", ghl_stage_id)
+                    ], limit=1)
+                    if stage_mapping and stage_mapping.odoo_stage_id:
+                        vals["stage_id"] = stage_mapping.odoo_stage_id.id
+
+                # Map GHL assigned user to Odoo user
+                ghl_assigned_to = o.get("assignedTo")
+                if ghl_assigned_to:
+                    user_mapping = self.env["ghl.user.mapping"].sudo().search([
+                        ("ghl_user_id", "=", ghl_assigned_to)
+                    ], limit=1)
+                    if user_mapping and user_mapping.odoo_user_id:
+                        vals["user_id"] = user_mapping.odoo_user_id.id
+                    else:
+                        vals["user_id"] = False  # User not mapped, unassign
                 else:
-                    vals["user_id"] = False  # User not mapped, unassign
-            else:
-                vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
+                    vals["user_id"] = False  # No user assigned in GHL, unassign in Odoo
 
-            if lead:
-                lead.with_context(ghl_sync_running=True).write(vals)
-            else:
-                vals.update(
-                    {
-                        "ghl_id": ghl_id,
-                        "ghl_remote_updated_at": updated_at,
-                        "ghl_last_synced_at": fields.Datetime.now(),
-                    }
-                )
-                Lead.with_context(ghl_sync_running=True).create(vals)
+                if lead:
+                    lead.with_context(ghl_sync_running=True).write(vals)
+                else:
+                    vals.update(
+                        {
+                            "ghl_id": ghl_id,
+                            "ghl_remote_updated_at": updated_at,
+                            "ghl_last_synced_at": fields.Datetime.now(),
+                        }
+                    )
+                    Lead.with_context(ghl_sync_running=True).create(vals)
+
+            # Check for next page
+            meta = data.get("meta", {})
+            start_after = meta.get("startAfter") or meta.get("startAfterId")
+            
+            if not start_after:
+                _logger.info(f"No more pages. Total opportunities fetched: {total_fetched}")
+                break
 
         if latest:
             self._save_last_pull(opportunity=latest.isoformat())
