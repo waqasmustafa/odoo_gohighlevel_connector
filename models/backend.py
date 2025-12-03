@@ -374,14 +374,16 @@ class OdooGHLBackend(models.AbstractModel):
                     c.get("dateUpdated") or c.get("updatedAt")
                 )
                 
-                # Skip if not updated since last pull (client-side filtering)
-                if latest and updated_at and updated_at <= latest:
+                # Check if this contact already exists in Odoo
+                partner = Partner.search([("ghl_id", "=", ghl_id)], limit=1)
+                
+                # Skip if not updated since last pull (only if contact already exists)
+                # This allows initial sync of all contacts, but prevents re-syncing unchanged contacts
+                if partner and latest and updated_at and updated_at <= latest:
                     continue
                 
                 if latest is None or (updated_at and updated_at > latest):
                     latest = updated_at
-
-                partner = Partner.search([("ghl_id", "=", ghl_id)], limit=1)
 
                 vals = {
                     "name": c.get("contactName")
@@ -617,14 +619,16 @@ class OdooGHLBackend(models.AbstractModel):
 
                 updated_at = self._parse_remote_dt(o.get("updatedAt"))
                 
-                # Skip if not updated since last pull (client-side filtering)
-                if latest and updated_at and updated_at <= latest:
+                # Check if this opportunity already exists in Odoo
+                lead = Lead.search([("ghl_id", "=", ghl_id)], limit=1)
+                
+                # Skip if not updated since last pull (only if opportunity already exists)
+                # This allows initial sync of all opportunities, but prevents re-syncing unchanged ones
+                if lead and latest and updated_at and updated_at <= latest:
                     continue
                 
                 if latest is None or (updated_at and updated_at > latest):
                     latest = updated_at
-
-                lead = Lead.search([("ghl_id", "=", ghl_id)], limit=1)
 
                 vals = {
                     "name": o.get("name"),
