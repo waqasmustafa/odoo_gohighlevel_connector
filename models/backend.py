@@ -82,7 +82,13 @@ class OdooGHLBackend(models.AbstractModel):
     @api.model
     def _request(self, method, endpoint, api_token, params=None, payload=None):
         base_url = "https://services.leadconnectorhq.com"
-        url = f"{base_url}{endpoint}"
+        
+        # Support full URLs (for nextPageUrl) or endpoints
+        if endpoint.startswith("http"):
+            url = endpoint  # Full URL provided (nextPageUrl)
+        else:
+            url = f"{base_url}{endpoint}"  # Endpoint provided
+        
         headers = self._base_headers(api_token)
 
         _logger.info(
@@ -315,9 +321,13 @@ class OdooGHLBackend(models.AbstractModel):
             cfg["last_contact_pull"]
         )
 
-        # Pagination loop with safety checks
-        start_after = None
-        previous_cursor = None
+        # Pagination using nextPageUrl (GHL provides complete URL)
+        url = "/contacts/"
+        params = {
+            "locationId": cfg["location_id"],
+            "limit": limit,
+        }
+        
         total_fetched = 0
         seen_ids = set()  # Track IDs to detect duplicates
         max_iterations = 1000  # Safety limit
@@ -331,22 +341,8 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.warning(f"Reached maximum iterations ({max_iterations}), stopping contact sync.")
                 break
             
-            # Safety check: detect same cursor (API bug)
-            if start_after and start_after == previous_cursor:
-                _logger.warning(f"API returned same cursor twice ({start_after}), stopping to prevent infinite loop.")
-                break
-            
-            params = {
-                "locationId": cfg["location_id"],
-                "limit": limit,
-            }
-            
-            # Add pagination cursor if we have one
-            if start_after:
-                params["startAfter"] = start_after
-            
-            _logger.info(f"Fetching contacts page {iteration} (startAfter={start_after})...")
-            data = self._request("GET", "/contacts/", cfg["api_token"], params=params)
+            _logger.info(f"Fetching contacts page {iteration}...")
+            data = self._request("GET", url, cfg["api_token"], params=params)
             contacts = data.get("contacts") or data.get("items") or []
             
             if not contacts:
@@ -460,14 +456,17 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.warning(f"All contacts on this page were duplicates, stopping to prevent infinite loop.")
                 break
 
-            # Check for next page
+            # Check for next page using nextPageUrl
             meta = data.get("meta", {})
-            previous_cursor = start_after
-            start_after = meta.get("startAfter") or meta.get("startAfterId")
+            next_page_url = meta.get("nextPageUrl")
             
-            if not start_after:
+            if not next_page_url:
                 _logger.info(f"No more pages. Total unique contacts fetched: {total_fetched}")
                 break
+            
+            # Use the complete URL provided by GHL (already has all params)
+            url = next_page_url
+            params = {}  # Clear params - nextPageUrl already contains everything
 
         if latest:
             self._save_last_pull(contact=latest.isoformat())
@@ -561,9 +560,13 @@ class OdooGHLBackend(models.AbstractModel):
             cfg["last_opportunity_pull"]
         )
 
-        # Pagination loop with safety checks
-        start_after = None
-        previous_cursor = None
+        # Pagination using nextPageUrl (GHL provides complete URL)
+        url = "/opportunities/search"
+        params = {
+            "location_id": cfg["location_id"],
+            "limit": limit,
+        }
+        
         total_fetched = 0
         seen_ids = set()  # Track IDs to detect duplicates
         max_iterations = 1000  # Safety limit
@@ -577,23 +580,9 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.warning(f"Reached maximum iterations ({max_iterations}), stopping opportunity sync.")
                 break
             
-            # Safety check: detect same cursor (API bug)
-            if start_after and start_after == previous_cursor:
-                _logger.warning(f"API returned same cursor twice ({start_after}), stopping to prevent infinite loop.")
-                break
-            
-            params = {
-                "location_id": cfg["location_id"],
-                "limit": limit,
-            }
-            
-            # Add pagination cursor if we have one
-            if start_after:
-                params["startAfter"] = start_after
-            
-            _logger.info(f"Fetching opportunities page {iteration} (startAfter={start_after})...")
+            _logger.info(f"Fetching opportunities page {iteration}...")
             # Use /opportunities/search to list opportunities
-            data = self._request("GET", "/opportunities/search", cfg["api_token"], params=params)
+            data = self._request("GET", url, cfg["api_token"], params=params)
             opportunities = data.get("opportunities") or data.get("items") or []
             
             if not opportunities:
@@ -689,14 +678,17 @@ class OdooGHLBackend(models.AbstractModel):
                 _logger.warning(f"All opportunities on this page were duplicates, stopping to prevent infinite loop.")
                 break
 
-            # Check for next page
+            # Check for next page using nextPageUrl
             meta = data.get("meta", {})
-            previous_cursor = start_after
-            start_after = meta.get("startAfter") or meta.get("startAfterId")
+            next_page_url = meta.get("nextPageUrl")
             
-            if not start_after:
+            if not next_page_url:
                 _logger.info(f"No more pages. Total unique opportunities fetched: {total_fetched}")
                 break
+            
+            # Use the complete URL provided by GHL (already has all params)
+            url = next_page_url
+            params = {}  # Clear params - nextPageUrl already contains everything
 
         if latest:
             self._save_last_pull(opportunity=latest.isoformat())
