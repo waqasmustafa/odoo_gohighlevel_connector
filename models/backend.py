@@ -482,40 +482,13 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
 
-        # Auto-sync contact to GHL if it doesn't have ghl_id yet
-        contact_id = None
-        if lead.partner_id:
-            if not lead.partner_id.ghl_id:
-                # Contact exists in Odoo but not synced to GHL yet
-                _logger.info(f"Contact '{lead.partner_id.name}' has no ghl_id, syncing to GHL first...")
-                try:
-                    self.push_contact(lead.partner_id)
-                    # Refresh to get the ghl_id that was just created
-                    lead.partner_id.refresh()
-                except Exception as e:
-                    _logger.error(f"Failed to sync contact to GHL: {e}")
-                    raise UserError(_(
-                        "Cannot sync opportunity to GoHighLevel: "
-                        "Failed to sync contact '%s' first.\n\n"
-                        "Error: %s"
-                    ) % (lead.partner_id.name, str(e)))
-            
-            contact_id = lead.partner_id.ghl_id
-        
-        # GHL requires contactId - if still None, we can't proceed
-        if not contact_id:
-            raise UserError(_(
-                "Cannot sync opportunity to GoHighLevel: "
-                "No contact is linked to this opportunity.\n\n"
-                "Please select a contact before saving."
-            ))
-
         payload = {
             "locationId": cfg["location_id"],
             "name": lead.name,
             "monetaryValue": lead.expected_revenue or 0.0,
             "status": "open" if lead.active else "closed",
-            "contactId": contact_id,
+            "status": "open" if lead.active else "closed",
+            "contactId": lead.partner_id and lead.partner_id.ghl_id or None,
         }
 
         # Assignee
