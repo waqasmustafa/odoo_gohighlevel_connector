@@ -482,13 +482,39 @@ class OdooGHLBackend(models.AbstractModel):
         if cfg["sync_direction"] not in ("odoo_to_ghl", "both"):
             return
 
+        # Auto-create contact in GHL if partner exists but has no ghl_id
+        contact_id = None
+        if lead.partner_id:
+            if not lead.partner_id.ghl_id:
+                # Contact exists in Odoo but not in GHL - push it first
+                try:
+                    self.push_contact(lead.partner_id)
+                    # Refresh to get the ghl_id that was just created
+                    lead.partner_id.refresh()
+                except Exception as e:
+                    # Log error but continue - we'll handle missing contactId below
+                    import logging
+                    _logger = logging.getLogger(__name__)
+                    _logger.warning(f"Failed to auto-create contact in GHL: {e}")
+            
+            contact_id = lead.partner_id.ghl_id
+
+        # Validate contactId - GHL requires it
+        if not contact_id:
+            from odoo.exceptions import UserError
+            from odoo.tools.translate import _
+            raise UserError(_(
+                "Cannot sync opportunity to GoHighLevel: Contact is required.\n"
+                "Please select an existing contact or ensure the contact has been synced to GHL first."
+            ))
+
         payload = {
             "locationId": cfg["location_id"],
             "name": lead.name,
             "monetaryValue": lead.expected_revenue or 0.0,
             "status": "open" if lead.active else "closed",
             "status": "open" if lead.active else "closed",
-            "contactId": lead.partner_id and lead.partner_id.ghl_id or None,
+            "contactId": contact_id,
         }
 
         # Assignee
